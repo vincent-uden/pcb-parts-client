@@ -1,0 +1,10 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+clap = { version = "4.5.36", features = ["derive"] }
+common = {path="../common"}
+tokio = { version = "1.44.2", features = ["full"] }
