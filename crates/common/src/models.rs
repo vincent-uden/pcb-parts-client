@@ -5,13 +5,12 @@ pub struct Part {
     pub id: i64,
     pub name: String,
     pub description: String,
-    pub stock: i64,
-    pub bin_id: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bin {
     pub id: i64,
+    pub profile_id: i64,
     pub row: i64,
     pub column: i64,
     pub z: i64,

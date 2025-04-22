@@ -1,34 +1,127 @@
-use anyhow::Result;
-use reqwest::Client;
+use std::{fmt::Display, fs, sync::Arc};
+
+use anyhow::{Result, anyhow};
+use reqwest::{Client, RequestBuilder};
+use reqwest_cookie_store::CookieStoreMutex;
+use serde::Serialize;
 use url::Url;
 
-use crate::models::User;
+use crate::models::{Part, User};
 
 #[derive(Debug)]
 pub struct NetworkClient {
     client: Client,
     base_url: Url,
+    cookie_store: Arc<CookieStoreMutex>,
 }
 
 impl NetworkClient {
+    fn build_get(
+        &mut self,
+        route: &str,
+        params: &[(impl Display, impl Display)],
+    ) -> RequestBuilder {
+        let mut query_string = String::new();
+        for (k, v) in params {
+            query_string.push_str(&format!("&{}={}", k, v));
+        }
+        if !query_string.is_empty() {
+            query_string.remove(0);
+        }
+        let mut url = self.base_url.join(route).unwrap();
+        url.set_query(Some(&query_string));
+        self.client.get(url.as_str())
+    }
+
+    fn build_post<T>(&mut self, route: &str, body: &T) -> RequestBuilder
+    where
+        T: Serialize + ?Sized,
+    {
+        self.client
+            .post(self.base_url.join(route).unwrap().as_str())
+            .json(body)
+    }
+
     pub fn local_client() -> Self {
+        let cookie_store = {
+            if let Ok(file) = std::fs::File::open(".cookies.json").map(std::io::BufReader::new) {
+                #[allow(deprecated)]
+                reqwest_cookie_store::CookieStore::load_json_all(file).unwrap()
+            } else {
+                reqwest_cookie_store::CookieStore::new(None)
+            }
+        };
+        let cookie_store = reqwest_cookie_store::CookieStoreMutex::new(cookie_store);
+        let cookie_store = std::sync::Arc::new(cookie_store);
         Self {
-            client: Client::builder().cookie_store(true).build().unwrap(),
+            client: Client::builder()
+                .cookie_provider(Arc::clone(&cookie_store))
+                .build()
+                .unwrap(),
             base_url: Url::parse("http://localhost:3000").unwrap(),
+            cookie_store,
         }
     }
 
-    pub async fn create_user(&mut self, pending: User) -> Result<bool> {
+    pub async fn create_user(&mut self, pending: User) -> Result<()> {
         let resp_text = self
-            .client
-            .post(self.base_url.join("/api/user/create").unwrap().as_str())
-            .json(&pending)
+            .build_post("/api/user/create", &pending)
             .send()
             .await?
             .text()
             .await?;
         println!("{:?}", resp_text);
 
-        Ok(true)
+        Ok(())
+    }
+
+    pub async fn login(&mut self, user: User) -> Result<()> {
+        let resp_text = self.build_post("/api/user/session", &user).send().await?;
+        {
+            let cs = self.cookie_store.lock().unwrap();
+            if let Ok(mut file) =
+                std::fs::File::create(".cookies.json").map(std::io::BufWriter::new)
+            {
+                println!("Writing");
+                #[allow(deprecated)]
+                cs.save_incl_expired_and_nonpersistent_json(&mut file)
+                    .unwrap();
+            } else {
+                println!("Couldnt open file");
+            }
+        };
+        Ok(())
+    }
+
+    pub async fn get_parts(
+        &mut self,
+        name: Option<String>,
+        description: Option<String>,
+    ) -> Result<Vec<Part>> {
+        let mut params = vec![];
+        if let Some(name) = name {
+            params.push(("name", name));
+        }
+        if let Some(description) = description {
+            params.push(("description", description));
+        }
+        let resp = self
+            .build_get("/api/parts", &params)
+            .send()
+            .await?
+            .text()
+            .await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
+    pub async fn new_part(&mut self, part: Part) -> Result<()> {
+        let resp_text = self
+            .build_post("/api/parts", &part)
+            .send()
+            .await?
+            .text()
+            .await?;
+        println!("{:?}", resp_text);
+        Ok(())
     }
 }

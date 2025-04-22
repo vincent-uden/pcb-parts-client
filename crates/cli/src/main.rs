@@ -1,6 +1,9 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use common::{models::User, network::NetworkClient};
+use common::{
+    models::{Part, User},
+    network::NetworkClient,
+};
 
 /// Simple inventory management CLI
 #[derive(Debug, Parser)]
@@ -15,7 +18,24 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    CreateUser { email: String, password: String },
+    CreateUser {
+        email: String,
+        password: String,
+    },
+    Login {
+        email: String,
+        password: String,
+    },
+    ListParts {
+        #[arg(short, long)]
+        name: Option<String>,
+        #[arg(short, long)]
+        description: Option<String>,
+    },
+    AddPart {
+        name: String,
+        description: String,
+    },
 }
 
 #[tokio::main]
@@ -31,6 +51,28 @@ async fn main() -> Result<()> {
                     email,
                     password,
                     ..Default::default()
+                })
+                .await?;
+        }
+        Commands::Login { email, password } => {
+            network
+                .login(User {
+                    email,
+                    password,
+                    ..Default::default()
+                })
+                .await?;
+        }
+        Commands::ListParts { name, description } => {
+            let parts = network.get_parts(name, description).await?;
+            println!("{:#?}", parts);
+        }
+        Commands::AddPart { name, description } => {
+            network
+                .new_part(Part {
+                    id: 0,
+                    name,
+                    description,
                 })
                 .await?;
         }
