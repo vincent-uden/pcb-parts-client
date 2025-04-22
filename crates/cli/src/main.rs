@@ -4,6 +4,10 @@ use common::{
     models::{Part, User},
     network::NetworkClient,
 };
+use tabled::{
+    Table,
+    settings::{Alignment, Color, Style, object::Rows},
+};
 
 /// Simple inventory management CLI
 #[derive(Debug, Parser)]
@@ -65,7 +69,11 @@ async fn main() -> Result<()> {
         }
         Commands::ListParts { name, description } => {
             let parts = network.get_parts(name, description).await?;
-            println!("{:#?}", parts);
+            let mut table = Table::new(parts);
+            table.with(Style::modern_rounded());
+            table.modify(Rows::first(), Alignment::center());
+            table.modify(Rows::first(), Color::FG_CYAN);
+            println!("{}", table);
         }
         Commands::AddPart { name, description } => {
             network
