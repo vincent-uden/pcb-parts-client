@@ -6,13 +6,24 @@ use reqwest_cookie_store::CookieStoreMutex;
 use serde::Serialize;
 use url::Url;
 
-use crate::models::{Part, User};
+use crate::models::{Part, Profile, User};
 
 #[derive(Debug)]
 pub struct NetworkClient {
     client: Client,
     base_url: Url,
     cookie_store: Arc<CookieStoreMutex>,
+}
+
+#[derive(Serialize)]
+struct CreateProfileBody {
+    name: String,
+}
+
+#[derive(Serialize)]
+struct UpdateProfileBody {
+    id: i32,
+    name: String,
 }
 
 impl NetworkClient {
@@ -122,6 +133,31 @@ impl NetworkClient {
             .text()
             .await?;
         println!("{:?}", resp_text);
+        Ok(())
+    }
+
+    pub async fn get_profiles(&mut self, name: Option<String>) -> Result<Vec<Profile>> {
+        let mut params = vec![];
+        if let Some(name) = name {
+            params.push(("name", name));
+        }
+        let resp = self
+            .build_get("/api/profile", &params)
+            .send()
+            .await?
+            .text()
+            .await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
+    pub async fn new_profile(&mut self, name: String) -> Result<()> {
+        let body = CreateProfileBody { name };
+        let _resp_text = self
+            .build_post("/api/profile", &body)
+            .send()
+            .await?
+            .text()
+            .await?;
         Ok(())
     }
 }

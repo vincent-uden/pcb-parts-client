@@ -5,9 +5,21 @@ use common::{
     network::NetworkClient,
 };
 use tabled::{
-    Table,
+    Table, Tabled,
     settings::{Alignment, Color, Style, object::Rows},
 };
+
+fn print_table(rows: &[impl Tabled]) {
+    if rows.is_empty() {
+        println!("No entries");
+    } else {
+        let mut table = Table::new(rows);
+        table.with(Style::modern_rounded());
+        table.modify(Rows::first(), Alignment::center());
+        table.modify(Rows::first(), Color::FG_CYAN);
+        println!("{}", table);
+    }
+}
 
 /// Simple inventory management CLI
 #[derive(Debug, Parser)]
@@ -40,6 +52,10 @@ enum Commands {
         name: String,
         description: String,
     },
+    ListProfiles,
+    CreateProfile {
+        name: String,
+    },
 }
 
 #[tokio::main]
@@ -69,11 +85,7 @@ async fn main() -> Result<()> {
         }
         Commands::ListParts { name, description } => {
             let parts = network.get_parts(name, description).await?;
-            let mut table = Table::new(parts);
-            table.with(Style::modern_rounded());
-            table.modify(Rows::first(), Alignment::center());
-            table.modify(Rows::first(), Color::FG_CYAN);
-            println!("{}", table);
+            print_table(&parts);
         }
         Commands::AddPart { name, description } => {
             network
@@ -83,6 +95,14 @@ async fn main() -> Result<()> {
                     description,
                 })
                 .await?;
+        }
+        Commands::ListProfiles => {
+            let profiles = network.get_profiles(None).await?;
+            print_table(&profiles);
+        }
+        Commands::CreateProfile { name } => {
+            network.new_profile(name.clone()).await?;
+            println!("Profile: {} created", name);
         }
     }
 
