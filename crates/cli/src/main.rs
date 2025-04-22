@@ -56,6 +56,17 @@ enum Commands {
     CreateProfile {
         name: String,
     },
+    StockPart {
+        profile_id: i64,
+        part_id: i64,
+        stock: i64,
+        col: i64,
+        row: i64,
+        z: i64,
+    },
+    ListStock {
+        profile_id: i64,
+    },
 }
 
 #[tokio::main]
@@ -103,6 +114,23 @@ async fn main() -> Result<()> {
         Commands::CreateProfile { name } => {
             network.new_profile(name.clone()).await?;
             println!("Profile: {} created", name);
+        }
+        Commands::StockPart {
+            profile_id,
+            part_id,
+            stock,
+            col,
+            row,
+            z,
+        } => {
+            network
+                .stock_part(profile_id, part_id, stock, col, row, z)
+                .await?;
+            println!("Part stocked");
+        }
+        Commands::ListStock { profile_id } => {
+            let stock = network.list_stock(profile_id).await?;
+            print_table(&stock);
         }
     }
 

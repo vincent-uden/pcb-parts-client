@@ -82,3 +82,17 @@ pub struct Session {
     pub token: String,
     pub expires: Option<i64>, // nullable timestamp
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+#[serde(rename_all = "camelCase")]
+pub struct StockRows {
+    id: i64,
+    bin_id: i64,
+    row: i64,
+    column: i64,
+    z: i64,
+    part_id: i64,
+    name: String,
+    description: String,
+    stock: i64,
+}

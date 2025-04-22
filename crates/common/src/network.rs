@@ -6,7 +6,7 @@ use reqwest_cookie_store::CookieStoreMutex;
 use serde::Serialize;
 use url::Url;
 
-use crate::models::{Part, Profile, User};
+use crate::models::{Part, Profile, StockRows, User};
 
 #[derive(Debug)]
 pub struct NetworkClient {
@@ -162,14 +162,50 @@ impl NetworkClient {
         Ok(())
     }
 
+    pub async fn list_stock(&mut self, profile_id: i64) -> Result<Vec<StockRows>> {
+        let resp_text = self
+            .build_get("/api/stock", &[("profileId", profile_id)])
+            .send()
+            .await?
+            .text()
+            .await?;
+        Ok(serde_json::from_str(&resp_text)?)
+    }
+
     pub async fn stock_part(
         &mut self,
         profile_id: i64,
         part_id: i64,
-        col: i64,
+        stock: i64,
+        column: i64,
         row: i64,
         z: i64,
     ) -> Result<()> {
-        todo!()
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct StockBody {
+            profile_id: i64,
+            part_id: i64,
+            stock: i64,
+            column: i64,
+            row: i64,
+            z: i64,
+        }
+        let body = StockBody {
+            profile_id,
+            part_id,
+            stock,
+            column,
+            row,
+            z,
+        };
+        let _resp_text = self
+            .build_post("/api/stock", &body)
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        Ok(())
     }
 }
