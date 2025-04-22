@@ -147,6 +147,7 @@ impl NetworkClient {
             .await?
             .text()
             .await?;
+        println!("{}", resp);
         Ok(serde_json::from_str(&resp)?)
     }
 
@@ -159,5 +160,16 @@ impl NetworkClient {
             .text()
             .await?;
         Ok(())
+    }
+
+    pub async fn stock_part(
+        &mut self,
+        profile_id: i64,
+        part_id: i64,
+        col: i64,
+        row: i64,
+        z: i64,
+    ) -> Result<()> {
+        todo!()
     }
 }

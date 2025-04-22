@@ -9,6 +9,7 @@ pub struct Part {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+#[serde(rename_all = "camelCase")]
 pub struct Bin {
     pub id: i64,
     pub profile_id: i64,
@@ -18,6 +19,7 @@ pub struct Bin {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+#[serde(rename_all = "camelCase")]
 pub struct PartBinRelation {
     pub id: i64,
     pub part_id: i64,
@@ -32,6 +34,7 @@ pub struct Bom {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+#[serde(rename_all = "camelCase")]
 pub struct BomPartRelation {
     pub id: i64,
     pub bom_id: i64,
@@ -47,6 +50,7 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+#[serde(rename_all = "camelCase")]
 pub struct Profile {
     pub id: i64,
     pub user_id: i64,
@@ -54,6 +58,7 @@ pub struct Profile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfileBomRelation {
     pub id: i64,
     pub profile_id: i64,
@@ -61,6 +66,7 @@ pub struct ProfileBomRelation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub id: i64,
     pub key: String,
@@ -69,6 +75,7 @@ pub struct Settings {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Session {
     pub id: i64,
     pub user_id: i64,
