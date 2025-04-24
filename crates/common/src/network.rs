@@ -6,7 +6,7 @@ use reqwest_cookie_store::CookieStoreMutex;
 use serde::Serialize;
 use url::Url;
 
-use crate::models::{Part, Profile, StockRows, User};
+use crate::models::{BomProfileRow, Part, Profile, StockRows, User};
 
 #[derive(Debug)]
 pub struct NetworkClient {
@@ -209,15 +209,13 @@ impl NetworkClient {
         Ok(())
     }
 
-    // TODO: Fix the return data type
-    pub async fn list_boms(&mut self, profile_id: i64) -> Result<HashMap<i64, Bom>> {
+    pub async fn list_boms(&mut self, profile_id: i64) -> Result<HashMap<i64, BomProfileRow>> {
         let resp_text = self
             .build_get("/api/bom", &[("profileId", profile_id)])
             .send()
             .await?
             .text()
             .await?;
-        println!("{:?}", resp_text);
         Ok(serde_json::from_str(&resp_text)?)
     }
 }

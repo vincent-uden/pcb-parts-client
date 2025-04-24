@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use common::{
@@ -70,6 +72,10 @@ enum Commands {
     ListBoms {
         profile_id: i64,
     },
+    AddBom {
+        profile_id: i64,
+        csv_path: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -138,6 +144,15 @@ async fn main() -> Result<()> {
         Commands::ListBoms { profile_id } => {
             let boms = network.list_boms(profile_id).await?;
             println!("{:#?}", boms);
+        }
+        Commands::AddBom {
+            profile_id,
+            csv_path,
+        } => {
+            // Parse csv to a list of parts
+            // Compare to a fetched list of parts
+            // Assign ids
+            // Send BOM request
         }
     }
 
