@@ -9,6 +9,14 @@ pub struct Part {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+pub struct PartWithCount {
+    pub id: i64,
+    pub name: String,
+    pub description: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
 #[serde(rename_all = "camelCase")]
 pub struct Bin {
     pub id: i64,
@@ -95,12 +103,4 @@ pub struct StockRows {
     name: String,
     description: String,
     stock: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BomProfileRow {
-    boms: Bom,
-    profile_boms: ProfileBomRelation,
-    profile: Profile,
 }

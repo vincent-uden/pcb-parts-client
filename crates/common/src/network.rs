@@ -6,7 +6,7 @@ use reqwest_cookie_store::CookieStoreMutex;
 use serde::Serialize;
 use url::Url;
 
-use crate::models::{BomProfileRow, Part, Profile, StockRows, User};
+use crate::models::{Bom, Part, PartWithCount, Profile, StockRows, User};
 
 #[derive(Debug)]
 pub struct NetworkClient {
@@ -147,7 +147,6 @@ impl NetworkClient {
             .await?
             .text()
             .await?;
-        println!("{}", resp);
         Ok(serde_json::from_str(&resp)?)
     }
 
@@ -209,13 +208,77 @@ impl NetworkClient {
         Ok(())
     }
 
-    pub async fn list_boms(&mut self, profile_id: i64) -> Result<HashMap<i64, BomProfileRow>> {
+    pub async fn list_boms(&mut self, profile_id: i64, bom_id: Option<i64>) -> Result<Vec<Bom>> {
+        let mut params = vec![("profileId", profile_id)];
+        if let Some(bom_id) = bom_id {
+            params.push(("bomId", bom_id));
+        }
         let resp_text = self
-            .build_get("/api/bom", &[("profileId", profile_id)])
+            .build_get("/api/bom", &params)
             .send()
             .await?
             .text()
             .await?;
         Ok(serde_json::from_str(&resp_text)?)
+    }
+
+    pub async fn new_bom(
+        &mut self,
+        profile_id: i64,
+        name: String,
+        description: String,
+        candidates: Vec<(i64, Part)>,
+    ) -> Result<()> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct BomRow {
+            count: i64,
+            part: Part,
+        }
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct BomBody {
+            profile_id: i64,
+            name: String,
+            description: String,
+            parts: Vec<BomRow>,
+        }
+
+        let body = BomBody {
+            profile_id,
+            name,
+            description,
+            parts: candidates
+                .into_iter()
+                .map(|(count, part)| BomRow { count, part })
+                .collect(),
+        };
+
+        let resp_text = self
+            .build_post("/api/bom", &body)
+            .send()
+            .await?
+            .text()
+            .await?;
+        println!("{}", resp_text);
+        Ok(())
+    }
+
+    pub async fn parts_in_bom(
+        &mut self,
+        profile_id: i64,
+        bom_id: i64,
+    ) -> Result<Vec<PartWithCount>> {
+        let resp = self
+            .build_get("/api/bom/parts", &[
+                ("profileId", profile_id),
+                ("bomId", bom_id),
+            ])
+            .send()
+            .await?
+            .text()
+            .await?;
+        Ok(serde_json::from_str(&resp)?)
     }
 }

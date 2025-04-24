@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use common::{
+    import::csv_to_bom,
     models::{Part, User},
     network::NetworkClient,
 };
@@ -75,6 +76,15 @@ enum Commands {
     AddBom {
         profile_id: i64,
         csv_path: PathBuf,
+        name: String,
+        description: String,
+        name_col: String,
+        desc_col: String,
+        count_col: String,
+    },
+    ShowBom {
+        profile_id: i64,
+        bom_id: i64,
     },
 }
 
@@ -142,17 +152,49 @@ async fn main() -> Result<()> {
             print_table(&stock);
         }
         Commands::ListBoms { profile_id } => {
-            let boms = network.list_boms(profile_id).await?;
-            println!("{:#?}", boms);
+            let boms = network.list_boms(profile_id, None).await?;
+            print_table(&boms);
         }
         Commands::AddBom {
             profile_id,
             csv_path,
+            name_col,
+            desc_col,
+            count_col,
+            name,
+            description,
         } => {
             // Parse csv to a list of parts
+            let mut candidates = csv_to_bom(&csv_path, &name_col, &desc_col, &count_col)?;
             // Compare to a fetched list of parts
+            let parts = network.get_parts(None, None).await?;
             // Assign ids
+            for (_, part) in &mut candidates {
+                match parts.iter().find(|p| p.name == part.name) {
+                    Some(p) => {
+                        part.id = p.id;
+                    }
+                    None => {}
+                }
+            }
             // Send BOM request
+            network
+                .new_bom(profile_id, name, description, candidates)
+                .await?;
+            println!("BOM created");
+        }
+        Commands::ShowBom { profile_id, bom_id } => {
+            let bom = network.list_boms(profile_id, Some(bom_id)).await?;
+            println!("");
+            let header = format!(" BOM: {}", bom[0].name);
+            print!("{}\n ", header);
+            for _ in 0..header.len() {
+                print!("-");
+            }
+            println!("");
+            let parts = network.parts_in_bom(profile_id, bom_id).await?;
+            print_table(&parts);
+            println!("");
         }
     }
 
