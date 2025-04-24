@@ -31,7 +31,7 @@ struct Args {
     config: Option<PathBuf>,
 }
 
-fn main() -> Result<()> {
+fn main() -> iced::Result {
     tracing_subscriber::fmt()
         .with_writer(io::stdout)
         .with_env_filter(EnvFilter::new("gui"))
@@ -40,12 +40,15 @@ fn main() -> Result<()> {
     let args = Args::parse();
     if let Some(p) = args.config {
         let mut c = CONFIG.write().unwrap();
-        *c = Config::from_str(&fs::read_to_string(&p)?)?;
+        *c = Config::from_str(&fs::read_to_string(&p).unwrap()).unwrap();
     }
 
-    println!("Hello, world!");
-
-    Ok(())
+    iced::application("App", App::update, App::view)
+        .antialiasing(true)
+        .theme(theme)
+        .font(iced_fonts::REQUIRED_FONT_BYTES)
+        .subscription(App::subscription)
+        .run_with(|| (App::new(), iced::Task::none()))
 }
 
 pub fn theme(app: &App) -> Theme {
