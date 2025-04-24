@@ -67,6 +67,9 @@ enum Commands {
     ListStock {
         profile_id: i64,
     },
+    ListBoms {
+        profile_id: i64,
+    },
 }
 
 #[tokio::main]
@@ -131,6 +134,10 @@ async fn main() -> Result<()> {
         Commands::ListStock { profile_id } => {
             let stock = network.list_stock(profile_id).await?;
             print_table(&stock);
+        }
+        Commands::ListBoms { profile_id } => {
+            let boms = network.list_boms(profile_id).await?;
+            println!("{:#?}", boms);
         }
     }
 

@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs, sync::Arc};
+use std::{collections::HashMap, fmt::Display, fs, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use reqwest::{Client, RequestBuilder};
@@ -207,5 +207,17 @@ impl NetworkClient {
             .await?;
 
         Ok(())
+    }
+
+    // TODO: Fix the return data type
+    pub async fn list_boms(&mut self, profile_id: i64) -> Result<HashMap<i64, Bom>> {
+        let resp_text = self
+            .build_get("/api/bom", &[("profileId", profile_id)])
+            .send()
+            .await?
+            .text()
+            .await?;
+        println!("{:?}", resp_text);
+        Ok(serde_json::from_str(&resp_text)?)
     }
 }
