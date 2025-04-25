@@ -1,7 +1,7 @@
 use anyhow::Result;
 use common::models::PartWithStock;
 use common::{models::Part, network::NetworkClient};
-use iced::{Border, Length, Pixels, alignment, widget};
+use iced::{Border, Length, Pixels, Theme, alignment, widget};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -88,7 +88,13 @@ impl Search {
                     widget::horizontal_space().width(16.0),
                     widget::text("Parts"),
                     widget::horizontal_space().width(8.0),
-                    widget::toggler(false),
+                    widget::toggler(false).style(|theme: &Theme, _status| {
+                        let palette = theme.extended_palette();
+                        let mut style = widget::toggler::default(theme, _status);
+                        style.background = palette.background.base.color;
+                        style.foreground = palette.primary.base.color;
+                        style
+                    }),
                     widget::text("BOMs"),
                 )
                 .height(Length::Shrink)
