@@ -2,18 +2,24 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use common::{models::Part, network::NetworkClient};
-use iced::{Length, Subscription, event::listen_with, widget};
+use iced::{Color, Element, Length, Subscription, event::listen_with, widget};
 
 use crate::{
     CONFIG,
     search::{SearchMessage, widget::Search},
 };
 
+// TODO: Figure out where to store login and auth information.
+//       Some kind of context system?
+//       Maybe just a global like the config?
+//       Must be persisted in an encrypted manner, cant use the config file
+
 #[derive(Debug, Clone)]
 pub enum AppMessage {
     /// Tells the grid to highlight some parts
     HighlightParts(Vec<Part>),
     SearchMessage(SearchMessage),
+    Modal(OpenModal),
     Quit,
 }
 
@@ -25,12 +31,20 @@ enum AppTab {
     BomImport,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+enum OpenModal {
+    #[default]
+    None,
+    ChangeStock,
+}
+
 #[derive(Debug)]
 pub struct App {
     pub dark_mode: bool,
     tab: AppTab,
     network: Arc<Mutex<NetworkClient>>,
     search: Search,
+    modal: OpenModal,
 }
 
 impl App {
@@ -43,6 +57,7 @@ impl App {
             tab: AppTab::default(),
             search: Search::new(network.clone()),
             network,
+            modal: OpenModal::default(),
         }
     }
 
@@ -50,10 +65,17 @@ impl App {
         match message {
             AppMessage::HighlightParts(vec) => todo!(),
             AppMessage::Quit => iced::exit(),
+            AppMessage::SearchMessage(SearchMessage::ChangeStock(part)) => {
+                iced::Task::done(AppMessage::Modal(OpenModal::ChangeStock))
+            }
             AppMessage::SearchMessage(search_message) => self
                 .search
                 .update(search_message)
                 .map(AppMessage::SearchMessage),
+            AppMessage::Modal(open_modal) => {
+                self.modal = open_modal;
+                iced::Task::none()
+            }
         }
     }
 
@@ -63,11 +85,18 @@ impl App {
                 AppTab::Search => self.draw_search_tab(),
                 _ => todo!(),
             },
-            widget::horizontal_space().width(Length::Fill)
+            widget::horizontal_space().width(Length::Fill),
         ))
         .center(Length::Fill)
         .padding(16.0);
-        root.into()
+        match self.modal {
+            OpenModal::None => root.into(),
+            OpenModal::ChangeStock => modal(
+                root,
+                widget::container(widget::text("Modal")),
+                AppMessage::Modal(OpenModal::None),
+            ),
+        }
     }
 
     fn draw_search_tab(&self) -> iced::Element<'_, AppMessage> {
@@ -87,4 +116,33 @@ impl App {
 
         Subscription::batch(vec![keys])
     }
+}
+
+fn modal<'a, Message>(
+    base: impl Into<Element<'a, Message>>,
+    content: impl Into<Element<'a, Message>>,
+    on_blur: Message,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    widget::stack![
+        base.into(),
+        widget::opaque(
+            widget::mouse_area(widget::center(widget::opaque(content)).style(|_theme| {
+                widget::container::Style {
+                    background: Some(
+                        Color {
+                            a: 0.8,
+                            ..Color::BLACK
+                        }
+                        .into(),
+                    ),
+                    ..Default::default()
+                }
+            }))
+            .on_press(on_blur)
+        )
+    ]
+    .into()
 }

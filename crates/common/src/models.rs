@@ -13,11 +13,26 @@ pub fn default_bin_placement() -> i64 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
-pub struct PartWithCount {
+pub struct PartWithCountAndStock {
     pub id: i64,
     pub name: String,
     pub description: String,
     pub count: i64,
+    #[serde(default)]
+    pub stock: i64,
+    #[serde(default = "default_bin_placement")]
+    pub column: i64,
+    #[serde(default = "default_bin_placement")]
+    pub row: i64,
+    #[serde(default = "default_bin_placement")]
+    pub z: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+pub struct PartWithStock {
+    pub id: i64,
+    pub name: String,
+    pub description: String,
     #[serde(default)]
     pub stock: i64,
     #[serde(default = "default_bin_placement")]

@@ -711,6 +711,8 @@ dependencies = [
  "serde_json",
  "tabled",
  "tokio",
+ "tracing",
+ "tracing-log",
  "url",
 ]
 

@@ -36,7 +36,7 @@ struct Args {
 fn main() -> iced::Result {
     tracing_subscriber::fmt()
         .with_writer(io::stdout)
-        .with_env_filter(EnvFilter::new("gui"))
+        .with_env_filter(EnvFilter::new("common"))
         .init();
 
     let args = Args::parse();

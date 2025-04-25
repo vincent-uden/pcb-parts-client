@@ -1,4 +1,4 @@
-use common::models::Part;
+use common::models::{Part, PartWithStock};
 
 pub mod widget;
 
@@ -6,6 +6,7 @@ pub mod widget;
 pub enum SearchMessage {
     PendingQuery(String),
     SubmitQuery,
-    PartSearchResult(Vec<Part>),
+    PartSearchResult(Vec<PartWithStock>),
     FailedSearch(String),
+    ChangeStock(PartWithStock),
 }

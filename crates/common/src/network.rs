@@ -4,9 +4,10 @@ use anyhow::{Result, anyhow};
 use reqwest::{Client, RequestBuilder};
 use reqwest_cookie_store::CookieStoreMutex;
 use serde::Serialize;
+use tracing::{debug, info};
 use url::Url;
 
-use crate::models::{Bom, Part, PartWithCount, Profile, StockRows, User};
+use crate::models::{Bom, Part, PartWithCountAndStock, PartWithStock, Profile, StockRows, User};
 
 #[derive(Debug)]
 pub struct NetworkClient {
@@ -269,7 +270,7 @@ impl NetworkClient {
         &mut self,
         profile_id: i64,
         bom_id: i64,
-    ) -> Result<Vec<PartWithCount>> {
+    ) -> Result<Vec<PartWithCountAndStock>> {
         let resp = self
             .build_get("/api/bom/parts", &[
                 ("profileId", profile_id),
@@ -279,6 +280,29 @@ impl NetworkClient {
             .await?
             .text()
             .await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
+    pub async fn parts_with_stock(
+        &mut self,
+        name: Option<String>,
+        description: Option<String>,
+        profile_id: i64,
+    ) -> Result<Vec<PartWithStock>> {
+        let mut params = vec![("profileId", format!("{}", profile_id))];
+        if let Some(name) = name {
+            params.push(("name", name));
+        }
+        if let Some(description) = description {
+            params.push(("description", description));
+        }
+        let resp = self
+            .build_get("/api/parts/stock", &params)
+            .send()
+            .await?
+            .text()
+            .await?;
+        info!("{}", resp);
         Ok(serde_json::from_str(&resp)?)
     }
 }

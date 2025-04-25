@@ -1,4 +1,5 @@
 use anyhow::Result;
+use common::models::PartWithStock;
 use common::{models::Part, network::NetworkClient};
 use iced::{Border, Length, Pixels, alignment, widget};
 use std::fmt::Debug;
@@ -26,7 +27,7 @@ pub struct Search {
 
 #[derive(Debug)]
 pub struct PartSearch {
-    pub matching: Vec<Part>,
+    pub matching: Vec<PartWithStock>,
 }
 
 #[derive(Debug)]
@@ -67,6 +68,10 @@ impl Search {
             }
             SearchMessage::FailedSearch(msg) => {
                 error!("Error searching {}", msg);
+                iced::Task::none()
+            }
+            SearchMessage::ChangeStock(_) => {
+                error!("ChangeStock should be consumed by parent");
                 iced::Task::none()
             }
         }
@@ -115,9 +120,14 @@ impl PartSearch {
     pub fn new() -> Self {
         Self { matching: vec![] }
     }
-    async fn query(network: Arc<Mutex<NetworkClient>>, query: String) -> Result<Vec<Part>> {
+    async fn query(
+        network: Arc<Mutex<NetworkClient>>,
+        query: String,
+    ) -> Result<Vec<PartWithStock>> {
         let mut network = network.lock().await;
-        let out = network.get_parts(Some(query.clone()), Some(query)).await?;
+        let out = network
+            .parts_with_stock(Some(query.clone()), Some(query), 1)
+            .await?;
         Ok(out)
     }
 
@@ -126,6 +136,8 @@ impl PartSearch {
             widget::row![
                 widget::text("Name").width(Length::Fill),
                 widget::text("Description").width(Length::Fill),
+                widget::text("Stock").width(60.0),
+                widget::text("").width(140.0),
             ]
             .spacing(16.0)
             .into(),
@@ -135,11 +147,15 @@ impl PartSearch {
             widget::row![
                 widget::text(&p.name).width(Length::Fill),
                 widget::text(&p.description).width(Length::Fill),
+                widget::text(&p.stock).width(60.0),
+                widget::button("Change stock")
+                    .width(140.0)
+                    .on_press(SearchMessage::ChangeStock(p.clone())),
             ]
             .spacing(16.0)
             .into()
         }));
-        widget::column(rows).into()
+        widget::scrollable(widget::column(rows).spacing(8.0)).into()
     }
 }
 
