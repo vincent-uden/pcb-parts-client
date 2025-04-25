@@ -14,7 +14,7 @@ pub enum BindableMessage {
 impl From<BindableMessage> for AppMessage {
     fn from(value: BindableMessage) -> Self {
         match value {
-            BindableMessage::Quit => todo!(),
+            BindableMessage::Quit => AppMessage::Quit,
         }
     }
 }
@@ -34,7 +34,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        let default_config = include_str!("../assets/default.conf");
+        let default_config = include_str!("../../assets/default.conf");
         Self::from_str(&default_config).unwrap()
     }
 }

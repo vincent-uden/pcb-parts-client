@@ -9,11 +9,13 @@ use std::{
 use app::App;
 use clap::Parser;
 use iced::Theme;
-use keymap::Config;
+use settings::keymap::Config;
 use tracing_subscriber::EnvFilter;
 
 mod app;
-mod keymap;
+mod grid;
+mod search;
+mod settings;
 
 const DARK_THEME: Theme = Theme::TokyoNight;
 const LIGHT_THEME: Theme = Theme::Light;

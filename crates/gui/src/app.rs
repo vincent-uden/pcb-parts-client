@@ -1,31 +1,71 @@
-use common::network::NetworkClient;
-use iced::{Subscription, event::listen_with, widget};
+use std::sync::{Arc, Mutex};
 
-use crate::CONFIG;
+use common::{models::Part, network::NetworkClient};
+use iced::{Length, Subscription, event::listen_with, widget};
+
+use crate::{
+    CONFIG,
+    search::{SearchMessage, widget::Search},
+};
+
+#[derive(Debug, Clone)]
+pub enum AppMessage {
+    /// Tells the grid to highlight some parts
+    HighlightParts(Vec<Part>),
+    SearchMessage(SearchMessage),
+    Quit,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+enum AppTab {
+    #[default]
+    Search,
+    Settings,
+    BomImport,
+}
 
 #[derive(Debug)]
 pub struct App {
     pub dark_mode: bool,
-    network: NetworkClient,
+    tab: AppTab,
+    network: Arc<Mutex<NetworkClient>>,
+    search: Search,
 }
 
 impl App {
     pub fn new() -> Self {
+        // TODO: Cli flag for this
+        let network = Arc::new(Mutex::new(NetworkClient::local_client()));
+
         Self {
             dark_mode: true,
-            // TODO: Cli flag for this
-            network: NetworkClient::local_client(),
+            tab: AppTab::default(),
+            search: Search::new(network.clone()),
+            network,
         }
     }
 
     pub fn update(&mut self, message: AppMessage) -> iced::Task<AppMessage> {
         match message {
+            AppMessage::HighlightParts(vec) => todo!(),
             AppMessage::Quit => iced::exit(),
         }
     }
 
     pub fn view(&self) -> iced::Element<'_, AppMessage> {
-        widget::text("PCB Part Manager").into()
+        let root = widget::container(match self.tab {
+            AppTab::Search => self.draw_search_tab(),
+            _ => todo!(),
+        })
+        .center(Length::Fill)
+        .padding(16.0);
+        root.into()
+    }
+
+    fn draw_search_tab(&self) -> iced::Element<'_, AppMessage> {
+        widget::row(vec![self.search.view().map(AppMessage::SearchMessage)])
+            .spacing(16.0)
+            .into()
     }
 
     pub fn subscription(&self) -> Subscription<AppMessage> {
@@ -39,9 +79,4 @@ impl App {
 
         Subscription::batch(vec![keys])
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum AppMessage {
-    Quit,
 }
