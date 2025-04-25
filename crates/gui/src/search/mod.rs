@@ -1,4 +1,11 @@
+use common::models::Part;
+
 pub mod widget;
 
-#[derive(Debug, Clone, Copy)]
-pub enum SearchMessage {}
+#[derive(Debug, Clone)]
+pub enum SearchMessage {
+    PendingQuery(String),
+    SubmitQuery,
+    PartSearchResult(Vec<Part>),
+    FailedSearch(String),
+}

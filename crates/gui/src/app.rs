@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use common::{models::Part, network::NetworkClient};
 use iced::{Length, Subscription, event::listen_with, widget};
@@ -49,6 +50,10 @@ impl App {
         match message {
             AppMessage::HighlightParts(vec) => todo!(),
             AppMessage::Quit => iced::exit(),
+            AppMessage::SearchMessage(search_message) => self
+                .search
+                .update(search_message)
+                .map(AppMessage::SearchMessage),
         }
     }
 
