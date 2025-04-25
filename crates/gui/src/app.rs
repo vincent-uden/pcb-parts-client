@@ -53,10 +53,13 @@ impl App {
     }
 
     pub fn view(&self) -> iced::Element<'_, AppMessage> {
-        let root = widget::container(match self.tab {
-            AppTab::Search => self.draw_search_tab(),
-            _ => todo!(),
-        })
+        let root = widget::container(widget::row!(
+            match self.tab {
+                AppTab::Search => self.draw_search_tab(),
+                _ => todo!(),
+            },
+            widget::horizontal_space().width(Length::Fill)
+        ))
         .center(Length::Fill)
         .padding(16.0);
         root.into()

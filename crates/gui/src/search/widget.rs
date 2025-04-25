@@ -1,6 +1,6 @@
 use anyhow::Result;
 use common::{models::Part, network::NetworkClient};
-use iced::widget;
+use iced::{Border, Length, alignment, widget};
 use std::{
     fmt::Debug,
     sync::{Arc, Mutex},
@@ -20,6 +20,7 @@ pub struct Search {
     mode: SearchMode,
     part_searcher: PartSearch,
     bom_searcher: BomSearch,
+    query: String,
 }
 
 #[derive(Debug)]
@@ -40,6 +41,7 @@ impl Search {
             mode: SearchMode::default(),
             part_searcher: PartSearch::new(network.clone()),
             bom_searcher: BomSearch::new(network.clone()),
+            query: String::new(),
         }
     }
 
@@ -48,10 +50,38 @@ impl Search {
     }
 
     pub fn view(&self) -> iced::Element<'_, SearchMessage> {
-        match self.mode {
-            SearchMode::Parts => self.part_searcher.view(),
-            SearchMode::Boms => self.bom_searcher.view(),
-        }
+        widget::container(
+            widget::column!(
+                widget::row!(
+                    // TODO: Search icon
+                    widget::text_input("Name or description", &self.query),
+                    widget::horizontal_space().width(16.0),
+                    widget::text("Parts"),
+                    widget::horizontal_space().width(8.0),
+                    widget::toggler(false),
+                    widget::text("BOMs"),
+                )
+                .height(Length::Shrink)
+                .align_y(alignment::Vertical::Center),
+                match self.mode {
+                    SearchMode::Parts => self.part_searcher.view(),
+                    SearchMode::Boms => self.bom_searcher.view(),
+                },
+            )
+            .spacing(8.0),
+        )
+        .height(Length::Fill)
+        .style(|theme| {
+            let palette = theme.extended_palette();
+            widget::container::Style {
+                text_color: Some(palette.background.weak.text),
+                background: Some(palette.background.weak.color.into()),
+                border: Border::default().rounded(8.0),
+                ..Default::default()
+            }
+        })
+        .padding(8.0)
+        .into()
     }
 }
 
