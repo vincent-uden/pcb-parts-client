@@ -6,6 +6,8 @@ use strum::EnumString;
 
 use crate::app::AppMessage;
 
+use super::Grid;
+
 #[derive(Debug, EnumString, Clone, Copy, PartialEq, Eq)]
 pub enum BindableMessage {
     Quit,
@@ -22,12 +24,18 @@ impl From<BindableMessage> for AppMessage {
 #[derive(Debug)]
 pub struct Config {
     pub keyboard: Keybinds<BindableMessage>,
+    pub grid: Grid,
 }
 
 impl Config {
     pub fn new() -> Self {
         Config {
             keyboard: Keybinds::new(vec![]),
+            grid: Grid {
+                rows: 1,
+                columns: 1,
+                zs: 1,
+            },
         }
     }
 }
@@ -70,6 +78,12 @@ impl FromStr for Config {
                                     .bind(&args[0], BindableMessage::from_str(&args[1]).unwrap())
                                     .unwrap();
                             }
+                            Command::Grid => {
+                                assert!(args.len() == 3, "Grid requires three arguments");
+                                out.grid.rows = args[0].parse()?;
+                                out.grid.columns = args[1].parse()?;
+                                out.grid.zs = args[2].parse()?;
+                            }
                         }
                     } else {
                         todo!("Error handling for config parsing")
@@ -104,4 +118,5 @@ enum Token {
 #[derive(Debug, EnumString)]
 enum Command {
     Bind,
+    Grid,
 }

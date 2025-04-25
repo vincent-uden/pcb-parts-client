@@ -9,6 +9,7 @@ use iced::{Border, Color, Element, Length, Subscription, Theme, event::listen_wi
 
 use crate::{
     CONFIG,
+    grid::{GridMessage, widget::GridWidget},
     search::{SearchMessage, widget::Search},
 };
 
@@ -20,8 +21,9 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum AppMessage {
     /// Tells the grid to highlight some parts
-    HighlightParts(Vec<Part>),
+    HighlightParts(Vec<PartWithStock>),
     SearchMessage(SearchMessage),
+    GridMessage(GridMessage),
     Modal(OpenModal),
     StockModalAmount(String),
     StockModalRow(String),
@@ -62,6 +64,7 @@ pub struct App {
     tab: AppTab,
     network: Arc<Mutex<NetworkClient>>,
     search: Search,
+    grid: GridWidget,
     modal: OpenModal,
     stock_modal_data: StockModalData,
 }
@@ -70,11 +73,13 @@ impl App {
     pub fn new() -> Self {
         // TODO: Cli flag for this
         let network = Arc::new(Mutex::new(NetworkClient::local_client()));
+        let config = CONFIG.read().unwrap();
 
         Self {
             dark_mode: true,
             tab: AppTab::default(),
             search: Search::new(network.clone()),
+            grid: GridWidget::new(config.grid),
             network,
             modal: OpenModal::default(),
             stock_modal_data: StockModalData::default(),
@@ -153,17 +158,21 @@ impl App {
                 iced::Task::done(AppMessage::SearchMessage(SearchMessage::SubmitQuery))
             }
             AppMessage::StockModalFail => iced::Task::none(),
+            AppMessage::GridMessage(_) => todo!(),
         }
     }
 
     pub fn view(&self) -> iced::Element<'_, AppMessage> {
-        let root = widget::container(widget::row!(
-            match self.tab {
-                AppTab::Search => self.draw_search_tab(),
-                _ => todo!(),
-            },
-            widget::horizontal_space().width(Length::Fill),
-        ))
+        let root = widget::container(
+            widget::row!(
+                match self.tab {
+                    AppTab::Search => self.draw_search_tab(),
+                    _ => todo!(),
+                },
+                self.grid.view().map(AppMessage::GridMessage),
+            )
+            .spacing(16.0),
+        )
         .center(Length::Fill)
         .padding(16.0);
         match &self.modal {
