@@ -2,7 +2,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use common::{models::Part, network::NetworkClient};
-use iced::{Color, Element, Length, Subscription, event::listen_with, widget};
+use iced::{Border, Color, Element, Length, Subscription, Theme, event::listen_with, widget};
 
 use crate::{
     CONFIG,
@@ -93,7 +93,7 @@ impl App {
             OpenModal::None => root.into(),
             OpenModal::ChangeStock => modal(
                 root,
-                widget::container(widget::text("Modal")),
+                self.draw_change_stock_modal(),
                 AppMessage::Modal(OpenModal::None),
             ),
         }
@@ -103,6 +103,42 @@ impl App {
         widget::row(vec![self.search.view().map(AppMessage::SearchMessage)])
             .spacing(16.0)
             .into()
+    }
+
+    fn draw_change_stock_modal(&self) -> iced::Element<'_, AppMessage> {
+        // TODO: Show bin controls
+        widget::container(
+            widget::column![
+                widget::text("Change Stock"),
+                widget::vertical_space().height(8.0),
+                widget::text_input("Amount", ""),
+                widget::row![widget::button("Add Stock").width(Length::Fill), widget::button("Remove Stock").width(Length::Fill)].spacing(4.0),
+                widget::horizontal_rule(4.0),
+                widget::row![
+                    widget::text("Row").width(Length::Fill),
+                    widget::text("Column").width(Length::Fill),
+                    widget::text("Z").width(Length::Fill),
+                ].spacing(4.0),
+                widget::row![
+                    widget::text_input("", "").width(Length::Fill),
+                    widget::text_input("", "").width(Length::Fill),
+                    widget::text_input("", "").width(Length::Fill),
+                ].spacing(4.0),
+            ]
+            .spacing(4.0),
+        )
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            widget::container::Style {
+                text_color: Some(palette.background.weak.text),
+                background: Some(palette.background.weak.color.into()),
+                border: Border::default().rounded(8.0),
+                ..Default::default()
+            }
+        })
+        .padding(16.0)
+        .width(300.0)
+        .into()
     }
 
     pub fn subscription(&self) -> Subscription<AppMessage> {
