@@ -1592,6 +1592,7 @@ dependencies = [
  "keybinds",
  "logos",
  "serde",
+ "serde_json",
  "strum",
  "tokio",
  "tracing",

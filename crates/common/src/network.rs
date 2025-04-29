@@ -1,19 +1,21 @@
-use std::{collections::HashMap, fmt::Display, fs, sync::Arc};
+use std::{collections::HashMap, fmt::Display, fs, io::Read, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use reqwest::{Client, RequestBuilder};
 use reqwest_cookie_store::CookieStoreMutex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 use url::Url;
 
 use crate::models::{Bom, Part, PartWithCountAndStock, PartWithStock, Profile, StockRows, User};
 
+// TODO: Store the profile id along with the cookie
 #[derive(Debug)]
 pub struct NetworkClient {
     client: Client,
     base_url: Url,
     cookie_store: Arc<CookieStoreMutex>,
+    user_data: UserData,
 }
 
 #[derive(Serialize)]
@@ -25,6 +27,17 @@ struct CreateProfileBody {
 struct UpdateProfileBody {
     id: i32,
     name: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct UserData {
+    profile: Option<Profile>,
+}
+impl UserData {
+    fn save(&self) -> Result<()> {
+        std::fs::write(".userdata.json", serde_json::to_string(&self)?)?;
+        Ok(())
+    }
 }
 
 impl NetworkClient {
@@ -65,6 +78,12 @@ impl NetworkClient {
         };
         let cookie_store = reqwest_cookie_store::CookieStoreMutex::new(cookie_store);
         let cookie_store = std::sync::Arc::new(cookie_store);
+
+        let user_data = match std::fs::read_to_string(".userdata.json") {
+            Ok(contents) => serde_json::from_str(&contents).unwrap(),
+            Err(_) => UserData::default(),
+        };
+
         Self {
             client: Client::builder()
                 .cookie_provider(Arc::clone(&cookie_store))
@@ -72,6 +91,7 @@ impl NetworkClient {
                 .unwrap(),
             base_url: Url::parse("http://localhost:3000").unwrap(),
             cookie_store,
+            user_data,
         }
     }
 
@@ -102,6 +122,10 @@ impl NetworkClient {
                 println!("Couldnt open file");
             }
         };
+        // TODO: Allow for profile selection. Currently auto-selecting the first available profile
+        let profiles = self.get_profiles(None).await?;
+        self.user_data.profile = Some(profiles[0].clone());
+        self.user_data.save()?;
         Ok(())
     }
 

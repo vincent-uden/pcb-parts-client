@@ -1,8 +1,9 @@
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use common::{
-    models::{Part, PartWithStock},
+    models::{Part, PartWithStock, User},
     network::NetworkClient,
 };
 use iced::{Border, Color, Element, Length, Subscription, Theme, event::listen_with, widget};
@@ -12,11 +13,6 @@ use crate::{
     grid::{GridMessage, widget::GridWidget},
     search::{SearchMessage, widget::Search},
 };
-
-// TODO: Figure out where to store login and auth information.
-//       Some kind of context system?
-//       Maybe just a global like the config?
-//       Must be persisted in an encrypted manner, cant use the config file
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
@@ -31,8 +27,13 @@ pub enum AppMessage {
     StockModalZ(String),
     ChangeStock(i64),
     StockModalSuccess,
+    LoginModalEmail(String),
+    LoginModalPassword(String),
+    ConfirmLogin,
+    LoginSuccess,
     Quit,
     StockModalFail,
+    LoginFail,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -48,6 +49,7 @@ pub enum OpenModal {
     #[default]
     None,
     ChangeStock(PartWithStock),
+    Login,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -56,6 +58,12 @@ pub struct StockModalData {
     pub column: String,
     pub row: String,
     pub z: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct LoginModalData {
+    pub email: String,
+    pub password: String,
 }
 
 #[derive(Debug)]
@@ -67,6 +75,7 @@ pub struct App {
     grid: GridWidget,
     modal: OpenModal,
     stock_modal_data: StockModalData,
+    login_modal_data: LoginModalData,
 }
 
 impl App {
@@ -83,6 +92,7 @@ impl App {
             network,
             modal: OpenModal::default(),
             stock_modal_data: StockModalData::default(),
+            login_modal_data: LoginModalData::default(),
         }
     }
 
@@ -91,7 +101,7 @@ impl App {
             AppMessage::HighlightParts(vec) => todo!(),
             AppMessage::Quit => match self.modal {
                 OpenModal::None => iced::exit(),
-                OpenModal::ChangeStock(_) => iced::Task::none(),
+                _ => iced::Task::none(),
             },
             AppMessage::SearchMessage(SearchMessage::ChangeStock(part)) => {
                 iced::Task::done(AppMessage::Modal(OpenModal::ChangeStock(part)))
@@ -107,6 +117,9 @@ impl App {
                         self.stock_modal_data.column = part_with_stock.column.to_string();
                         self.stock_modal_data.row = part_with_stock.row.to_string();
                         self.stock_modal_data.z = part_with_stock.z.to_string();
+                    }
+                    OpenModal::Login => {
+                        self.login_modal_data = LoginModalData::default();
                     }
                 }
                 self.modal = open_modal;
@@ -159,6 +172,27 @@ impl App {
             }
             AppMessage::StockModalFail => iced::Task::none(),
             AppMessage::GridMessage(_) => todo!(),
+            AppMessage::LoginModalEmail(s) => {
+                self.login_modal_data.email = s;
+                iced::Task::none()
+            }
+            AppMessage::LoginModalPassword(s) => {
+                self.login_modal_data.password = s;
+                iced::Task::none()
+            }
+            AppMessage::ConfirmLogin => iced::Task::perform(
+                App::login(self.network.clone(), self.login_modal_data.clone()),
+                |output| match output {
+                    Ok(_) => AppMessage::LoginSuccess,
+                    Err(_) => AppMessage::LoginFail,
+                },
+            ),
+            AppMessage::LoginSuccess => {
+                self.login_modal_data = LoginModalData::default();
+                self.modal = OpenModal::None;
+                iced::Task::none()
+            }
+            AppMessage::LoginFail => iced::Task::none(),
         }
     }
 
@@ -180,6 +214,11 @@ impl App {
             OpenModal::ChangeStock(part) => modal(
                 root,
                 self.draw_change_stock_modal(part),
+                AppMessage::Modal(OpenModal::None),
+            ),
+            OpenModal::Login => modal(
+                root,
+                self.draw_login_modal(),
                 AppMessage::Modal(OpenModal::None),
             ),
         }
@@ -257,6 +296,44 @@ impl App {
         });
 
         Subscription::batch(vec![keys])
+    }
+
+    fn draw_login_modal(&self) -> iced::Element<'_, AppMessage> {
+        widget::container(
+            widget::column![
+                widget::text("Login"),
+                widget::vertical_space().height(8.0),
+                widget::text_input("Email", &self.login_modal_data.email)
+                    .on_input(AppMessage::LoginModalEmail),
+                widget::text_input("Password", &self.login_modal_data.password)
+                    .secure(true)
+                    .on_input(AppMessage::LoginModalPassword),
+                widget::button("Login").on_press(AppMessage::ConfirmLogin)
+            ]
+            .spacing(4.0),
+        )
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            widget::container::Style {
+                text_color: Some(palette.background.weak.text),
+                background: Some(palette.background.weak.color.into()),
+                border: Border::default().rounded(8.0),
+                ..Default::default()
+            }
+        })
+        .padding(16.0)
+        .width(300.0)
+        .into()
+    }
+
+    async fn login(network: Arc<Mutex<NetworkClient>>, data: LoginModalData) -> Result<()> {
+        let mut n = network.lock().await;
+        n.login(User {
+            id: 0,
+            email: data.email,
+            password: data.password,
+        })
+        .await
     }
 }
 

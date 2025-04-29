@@ -131,3 +131,10 @@ pub struct StockRows {
     description: String,
     stock: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BomWithParts {
+    pub bom: Bom,
+    pub parts: PartWithStock,
+}

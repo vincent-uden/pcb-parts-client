@@ -1,6 +1,8 @@
 use anyhow::Result;
-use common::models::PartWithStock;
-use common::{models::Part, network::NetworkClient};
+use common::{
+    models::{BomWithParts, Part, PartWithStock},
+    network::NetworkClient,
+};
 use iced::{Border, Length, Pixels, Theme, alignment, widget};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -32,7 +34,7 @@ pub struct PartSearch {
 
 #[derive(Debug)]
 pub struct BomSearch {
-    matching: Vec<Part>, // TODO: Change this datatype
+    matching: Vec<BomWithParts>, // TODO: Fetch from network
 }
 
 impl Search {

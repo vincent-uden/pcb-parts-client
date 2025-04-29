@@ -1,15 +1,18 @@
-use std::str::FromStr;
+use anyhow::Result;
+use std::{fs, str::FromStr};
 
 use keybinds::Keybinds;
 use logos::Logos;
+use serde::{Deserialize, Serialize};
 use strum::EnumString;
 
-use crate::app::AppMessage;
+use crate::app::{AppMessage, OpenModal};
 
 use super::Grid;
 
 #[derive(Debug, EnumString, Clone, Copy, PartialEq, Eq)]
 pub enum BindableMessage {
+    Login,
     Quit,
 }
 
@@ -17,6 +20,7 @@ impl From<BindableMessage> for AppMessage {
     fn from(value: BindableMessage) -> Self {
         match value {
             BindableMessage::Quit => AppMessage::Quit,
+            BindableMessage::Login => AppMessage::Modal(OpenModal::Login),
         }
     }
 }
