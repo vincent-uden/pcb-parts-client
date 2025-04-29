@@ -86,7 +86,13 @@ impl Search {
                 error!("ChangeStock should be consumed by parent");
                 iced::Task::none()
             }
-            SearchMessage::OpenBom(bom) => todo!(),
+            SearchMessage::OpenBom(bom) => {
+                // TODO: Continue here
+                //         - Expand BOM to show the containing parts
+                //         - Should also allow for stocking/unstocking of parts and the entire BOM
+                //         - Should send highlightparts to the grid
+                todo!()
+            }
             SearchMessage::Toggle => {
                 self.mode = match self.mode {
                     SearchMode::Parts => SearchMode::Boms,
