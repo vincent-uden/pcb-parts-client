@@ -15,7 +15,7 @@ pub struct NetworkClient {
     client: Client,
     base_url: Url,
     cookie_store: Arc<CookieStoreMutex>,
-    user_data: UserData,
+    pub user_data: UserData,
 }
 
 #[derive(Serialize)]
@@ -30,8 +30,8 @@ struct UpdateProfileBody {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-struct UserData {
-    profile: Option<Profile>,
+pub struct UserData {
+    pub profile: Option<Profile>,
 }
 impl UserData {
     fn save(&self) -> Result<()> {
@@ -233,10 +233,18 @@ impl NetworkClient {
         Ok(())
     }
 
-    pub async fn list_boms(&mut self, profile_id: i64, bom_id: Option<i64>) -> Result<Vec<Bom>> {
-        let mut params = vec![("profileId", profile_id)];
+    pub async fn list_boms(
+        &mut self,
+        profile_id: i64,
+        bom_id: Option<i64>,
+        bom_name: Option<String>,
+    ) -> Result<Vec<Bom>> {
+        let mut params = vec![("profileId", format!("{}", profile_id))];
         if let Some(bom_id) = bom_id {
-            params.push(("bomId", bom_id));
+            params.push(("bomId", format!("{}", bom_id)));
+        }
+        if let Some(bom_name) = bom_name {
+            params.push(("bomName", bom_name));
         }
         let resp_text = self
             .build_get("/api/bom", &params)

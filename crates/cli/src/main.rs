@@ -152,7 +152,7 @@ async fn main() -> Result<()> {
             print_table(&stock);
         }
         Commands::ListBoms { profile_id } => {
-            let boms = network.list_boms(profile_id, None).await?;
+            let boms = network.list_boms(profile_id, None, None).await?;
             print_table(&boms);
         }
         Commands::AddBom {
@@ -184,7 +184,7 @@ async fn main() -> Result<()> {
             println!("BOM created");
         }
         Commands::ShowBom { profile_id, bom_id } => {
-            let bom = network.list_boms(profile_id, Some(bom_id)).await?;
+            let bom = network.list_boms(profile_id, Some(bom_id), None).await?;
             println!("");
             let header = format!(" BOM: {}", bom[0].name);
             print!("{}\n ", header);

@@ -1,6 +1,6 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use common::{
-    models::{BomWithParts, Part, PartWithStock},
+    models::{Bom, BomWithParts, Part, PartWithStock},
     network::NetworkClient,
 };
 use iced::{Border, Length, Pixels, Theme, alignment, widget};
@@ -34,7 +34,7 @@ pub struct PartSearch {
 
 #[derive(Debug)]
 pub struct BomSearch {
-    matching: Vec<BomWithParts>, // TODO: Fetch from network
+    pub matching: Vec<Bom>, // TODO: Fetch from network
 }
 
 impl Search {
@@ -62,10 +62,20 @@ impl Search {
                         Err(e) => SearchMessage::FailedSearch(format!("{}", e)),
                     },
                 ),
-                SearchMode::Boms => iced::Task::none(),
+                SearchMode::Boms => iced::Task::perform(
+                    BomSearch::query(self.network.clone(), self.query.clone()),
+                    |output| match output {
+                        Ok(output) => SearchMessage::BomSearchResult(output),
+                        Err(e) => SearchMessage::FailedSearch(format!("{}", e)),
+                    },
+                ),
             },
             SearchMessage::PartSearchResult(vec) => {
                 self.part_searcher.matching = vec;
+                iced::Task::none()
+            }
+            SearchMessage::BomSearchResult(vec) => {
+                self.bom_searcher.matching = vec;
                 iced::Task::none()
             }
             SearchMessage::FailedSearch(msg) => {
@@ -74,6 +84,14 @@ impl Search {
             }
             SearchMessage::ChangeStock(_) => {
                 error!("ChangeStock should be consumed by parent");
+                iced::Task::none()
+            }
+            SearchMessage::OpenBom(bom) => todo!(),
+            SearchMessage::Toggle => {
+                self.mode = match self.mode {
+                    SearchMode::Parts => SearchMode::Boms,
+                    SearchMode::Boms => SearchMode::Parts,
+                };
                 iced::Task::none()
             }
         }
@@ -90,7 +108,12 @@ impl Search {
                     widget::horizontal_space().width(16.0),
                     widget::text("Parts"),
                     widget::horizontal_space().width(8.0),
-                    widget::toggler(false).style(|theme: &Theme, _status| {
+                    widget::toggler(match self.mode {
+                        SearchMode::Parts => false,
+                        SearchMode::Boms => true,
+                    })
+                    .on_toggle(|_| SearchMessage::Toggle)
+                    .style(|theme: &Theme, _status| {
                         let palette = theme.extended_palette();
                         let mut style = widget::toggler::default(theme, _status);
                         style.background = palette.background.base.color;
@@ -171,11 +194,37 @@ impl BomSearch {
     pub fn new() -> Self {
         Self { matching: vec![] }
     }
-    async fn query(&mut self, query: String) -> Result<()> {
-        todo!()
+    async fn query(network: Arc<Mutex<NetworkClient>>, query: String) -> Result<Vec<Bom>> {
+        let mut network = network.lock().await;
+        let profile_id = match &network.user_data.profile {
+            Some(p) => p.id,
+            None => return Err(anyhow!("No profile selected")),
+        };
+        network.list_boms(profile_id, None, Some(query)).await
     }
 
     fn view(&self) -> iced::Element<'_, SearchMessage> {
-        widget::text("BOM search").into()
+        let mut rows = vec![
+            widget::row![
+                widget::text("Name").width(Length::Fill),
+                widget::text("Description").width(Length::Fill),
+                widget::text("").width(140.0),
+            ]
+            .spacing(16.0)
+            .into(),
+            widget::vertical_space().height(4.0).into(),
+        ];
+        rows.extend(self.matching.iter().map(|p| {
+            widget::row![
+                widget::text(&p.name).width(Length::Fill),
+                widget::text(&p.description).width(Length::Fill),
+                widget::button("Open")
+                    .width(140.0)
+                    .on_press(SearchMessage::OpenBom(p.clone())),
+            ]
+            .spacing(16.0)
+            .into()
+        }));
+        widget::scrollable(widget::column(rows).spacing(8.0)).into()
     }
 }
