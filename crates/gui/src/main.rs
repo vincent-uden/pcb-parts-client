@@ -47,6 +47,7 @@ fn main() -> iced::Result {
 
     iced::application("App", App::update, App::view)
         .antialiasing(true)
+        .window_size((1200.0, 800.0))
         .theme(theme)
         .font(iced_fonts::REQUIRED_FONT_BYTES)
         .subscription(App::subscription)

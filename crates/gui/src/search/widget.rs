@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use common::{
-    models::{Bom, BomWithParts, Part, PartWithStock},
+    models::{Bom, BomWithParts, Part, PartWithCountAndStock, PartWithStock},
     network::NetworkClient,
 };
 use iced::{Border, Length, Pixels, Theme, alignment, widget};
@@ -35,6 +35,8 @@ pub struct PartSearch {
 #[derive(Debug)]
 pub struct BomSearch {
     pub matching: Vec<Bom>, // TODO: Fetch from network
+    pub expanded: Option<Bom>,
+    pub parts: Vec<PartWithCountAndStock>,
 }
 
 impl Search {
@@ -87,17 +89,28 @@ impl Search {
                 iced::Task::none()
             }
             SearchMessage::OpenBom(bom) => {
-                // TODO: Continue here
-                //         - Expand BOM to show the containing parts
-                //         - Should also allow for stocking/unstocking of parts and the entire BOM
-                //         - Should send highlightparts to the grid
-                todo!()
+                self.bom_searcher.expanded = Some(bom.clone());
+                self.bom_searcher.parts.clear();
+                iced::Task::perform(
+                    // TODO: Continue here
+                    //         - Should also allow for stocking/unstocking of parts and the entire BOM
+                    //         - Should send highlightparts to the grid
+                    BomSearch::fetch_bom_parts(self.network.clone(), bom),
+                    |output| match output {
+                        Ok(output) => SearchMessage::BomPartsSearchResult(output),
+                        Err(e) => SearchMessage::FailedSearch(format!("{}", e)),
+                    },
+                )
             }
             SearchMessage::Toggle => {
                 self.mode = match self.mode {
                     SearchMode::Parts => SearchMode::Boms,
                     SearchMode::Boms => SearchMode::Parts,
                 };
+                iced::Task::none()
+            }
+            SearchMessage::BomPartsSearchResult(vec) => {
+                self.bom_searcher.parts = vec;
                 iced::Task::none()
             }
         }
@@ -198,7 +211,11 @@ impl PartSearch {
 
 impl BomSearch {
     pub fn new() -> Self {
-        Self { matching: vec![] }
+        Self {
+            matching: vec![],
+            expanded: None,
+            parts: vec![],
+        }
     }
     async fn query(network: Arc<Mutex<NetworkClient>>, query: String) -> Result<Vec<Bom>> {
         let mut network = network.lock().await;
@@ -209,7 +226,26 @@ impl BomSearch {
         network.list_boms(profile_id, None, Some(query)).await
     }
 
+    async fn fetch_bom_parts(
+        network: Arc<Mutex<NetworkClient>>,
+        bom: Bom,
+    ) -> Result<Vec<PartWithCountAndStock>> {
+        let mut network = network.lock().await;
+        let profile_id = match &network.user_data.profile {
+            Some(p) => p.id,
+            None => return Err(anyhow!("No profile selected")),
+        };
+        network.parts_in_bom(profile_id, bom.id).await
+    }
+
     fn view(&self) -> iced::Element<'_, SearchMessage> {
+        match &self.expanded {
+            Some(bom) => self.view_bom_contents(bom),
+            None => self.view_list(),
+        }
+    }
+
+    fn view_list(&self) -> iced::Element<'_, SearchMessage> {
         let mut rows = vec![
             widget::row![
                 widget::text("Name").width(Length::Fill),
@@ -232,5 +268,43 @@ impl BomSearch {
             .into()
         }));
         widget::scrollable(widget::column(rows).spacing(8.0)).into()
+    }
+
+    fn view_bom_contents(&self, bom: &Bom) -> iced::Element<'_, SearchMessage> {
+        let mut rows = vec![
+            widget::row![
+                widget::text(format!("{}", bom.name)).width(Length::Fill),
+                widget::button("Change stock").width(140.0), // TODO: Come up with a much better
+                                                             // name for stock management
+            ]
+            .into(),
+            widget::text(format!("{}", bom.description)).into(),
+            widget::horizontal_rule(2.0).into(),
+            widget::vertical_space().height(4.0).into(),
+            widget::row![
+                widget::text("Name").width(Length::Fill),
+                widget::text("Description").width(Length::Fill),
+                widget::text("Count").width(60.0),
+                widget::text("Stock").width(60.0),
+            ]
+            .spacing(16.0)
+            .into(),
+        ];
+
+        let mut parts = widget::column(vec![]);
+        parts = parts.extend(self.parts.iter().map(|p| {
+            widget::row![
+                widget::text(&p.name).width(Length::Fill),
+                widget::text(&p.description).width(Length::Fill),
+                widget::text(&p.count).width(60.0),
+                widget::text(&p.stock).width(60.0),
+            ]
+            .spacing(16.0)
+            .into()
+        }));
+
+        rows.push(widget::scrollable(parts).into());
+
+        widget::column(rows).into()
     }
 }
