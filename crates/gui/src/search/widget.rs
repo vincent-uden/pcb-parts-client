@@ -3,7 +3,10 @@ use common::{
     models::{Bom, BomWithParts, Part, PartWithCountAndStock, PartWithStock},
     network::NetworkClient,
 };
-use iced::{Border, Length, Pixels, Theme, alignment, widget};
+use iced::{
+    Alignment, Border, Font, Length, Pixels, Theme, alignment, font::Weight,
+    futures::future::join_all, widget,
+};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -34,9 +37,10 @@ pub struct PartSearch {
 
 #[derive(Debug)]
 pub struct BomSearch {
-    pub matching: Vec<Bom>, // TODO: Fetch from network
+    pub matching: Vec<Bom>,
     pub expanded: Option<Bom>,
     pub parts: Vec<PartWithCountAndStock>,
+    pub stock_quantity: String,
 }
 
 impl Search {
@@ -92,9 +96,6 @@ impl Search {
                 self.bom_searcher.expanded = Some(bom.clone());
                 self.bom_searcher.parts.clear();
                 iced::Task::perform(
-                    // TODO: Continue here
-                    //         - Should also allow for stocking/unstocking of parts and the entire BOM
-                    //         - Should send highlightparts to the grid
                     BomSearch::fetch_bom_parts(self.network.clone(), bom),
                     |output| match output {
                         Ok(output) => SearchMessage::BomPartsSearchResult(output),
@@ -102,15 +103,71 @@ impl Search {
                     },
                 )
             }
+            SearchMessage::RefreshBom(bom) => iced::Task::perform(
+                BomSearch::fetch_bom_parts(self.network.clone(), bom),
+                |output| match output {
+                    Ok(output) => SearchMessage::BomPartsSearchResult(output),
+                    Err(e) => SearchMessage::FailedSearch(format!("{}", e)),
+                },
+            ),
             SearchMessage::Toggle => {
                 self.mode = match self.mode {
                     SearchMode::Parts => SearchMode::Boms,
                     SearchMode::Boms => SearchMode::Parts,
                 };
-                iced::Task::none()
+                iced::Task::done(SearchMessage::SubmitQuery)
             }
             SearchMessage::BomPartsSearchResult(vec) => {
                 self.bom_searcher.parts = vec;
+                iced::Task::none()
+            }
+            SearchMessage::RestockBom(bom) => {
+                let diff = match self.bom_searcher.stock_quantity.parse() {
+                    Ok(x) => x,
+                    Err(_) => return iced::Task::none(),
+                };
+                let old_parts = self.bom_searcher.parts.clone();
+                for p in self.bom_searcher.parts.iter_mut() {
+                    p.stock += diff * p.count;
+                }
+                iced::Task::perform(
+                    BomSearch::change_bom_stock(self.network.clone(), bom, old_parts, diff),
+                    move |output| match output {
+                        Ok(_) => SearchMessage::StockChangeSuccess(diff),
+                        Err(_) => SearchMessage::StockChangeFailed,
+                    },
+                )
+            }
+            SearchMessage::DepleteBom(bom) => {
+                let diff: i64 = match self.bom_searcher.stock_quantity.parse() {
+                    Ok(x) => x,
+                    Err(_) => return iced::Task::none(),
+                };
+                let old_parts = self.bom_searcher.parts.clone();
+                for p in self.bom_searcher.parts.iter_mut() {
+                    p.stock -= diff * p.count;
+                }
+                iced::Task::perform(
+                    BomSearch::change_bom_stock(self.network.clone(), bom, old_parts, -diff),
+                    move |output| match output {
+                        Ok(_) => SearchMessage::StockChangeSuccess(diff),
+                        Err(_) => SearchMessage::StockChangeFailed,
+                    },
+                )
+            }
+            SearchMessage::StockQuantity(s) => {
+                self.bom_searcher.stock_quantity = s;
+                iced::Task::none()
+            }
+            SearchMessage::StockChangeFailed => iced::Task::none(),
+            SearchMessage::StockChangeSuccess(_) => {
+                let bom = self.bom_searcher.expanded.as_ref().unwrap().clone();
+                iced::Task::done(SearchMessage::RefreshBom(bom))
+            }
+            SearchMessage::CloseBom => {
+                self.bom_searcher.expanded = None;
+                self.bom_searcher.parts.clear();
+                self.bom_searcher.stock_quantity.clear();
                 iced::Task::none()
             }
         }
@@ -184,25 +241,25 @@ impl PartSearch {
     fn view(&self) -> iced::Element<'_, SearchMessage> {
         let mut rows = vec![
             widget::row![
-                widget::text("Name").width(Length::Fill),
-                widget::text("Description").width(Length::Fill),
-                widget::text("Stock").width(60.0),
-                widget::text("").width(140.0),
+                table_header("Name").width(Length::Fill),
+                table_header("Description").width(Length::Fill),
+                table_header("Stock").width(60.0).align_x(Alignment::End),
+                table_header("").width(140.0),
             ]
             .spacing(16.0)
             .into(),
-            widget::vertical_space().height(4.0).into(),
         ];
         rows.extend(self.matching.iter().map(|p| {
             widget::row![
                 widget::text(&p.name).width(Length::Fill),
                 widget::text(&p.description).width(Length::Fill),
-                widget::text(&p.stock).width(60.0),
+                widget::text(&p.stock).width(60.0).align_x(Alignment::End),
                 widget::button("Change stock")
                     .width(140.0)
                     .on_press(SearchMessage::ChangeStock(p.clone())),
             ]
             .spacing(16.0)
+            .align_y(Alignment::Center)
             .into()
         }));
         widget::scrollable(widget::column(rows).spacing(8.0)).into()
@@ -215,6 +272,7 @@ impl BomSearch {
             matching: vec![],
             expanded: None,
             parts: vec![],
+            stock_quantity: String::new(),
         }
     }
     async fn query(network: Arc<Mutex<NetworkClient>>, query: String) -> Result<Vec<Bom>> {
@@ -238,6 +296,17 @@ impl BomSearch {
         network.parts_in_bom(profile_id, bom.id).await
     }
 
+    async fn change_bom_stock(
+        network: Arc<Mutex<NetworkClient>>,
+        bom: Bom,
+        parts: Vec<PartWithCountAndStock>,
+        diff: i64,
+    ) -> Result<()> {
+        let mut network = network.lock().await;
+        let profile_id = network.user_data.profile.as_ref().unwrap().id;
+        network.stock_parts(profile_id, &parts, diff).await
+    }
+
     fn view(&self) -> iced::Element<'_, SearchMessage> {
         match &self.expanded {
             Some(bom) => self.view_bom_contents(bom),
@@ -248,9 +317,9 @@ impl BomSearch {
     fn view_list(&self) -> iced::Element<'_, SearchMessage> {
         let mut rows = vec![
             widget::row![
-                widget::text("Name").width(Length::Fill),
-                widget::text("Description").width(Length::Fill),
-                widget::text("").width(140.0),
+                table_header("Name").width(Length::Fill),
+                table_header("Description").width(Length::Fill),
+                table_header("").width(140.0),
             ]
             .spacing(16.0)
             .into(),
@@ -264,6 +333,7 @@ impl BomSearch {
                     .width(140.0)
                     .on_press(SearchMessage::OpenBom(p.clone())),
             ]
+            .align_y(Alignment::Center)
             .spacing(16.0)
             .into()
         }));
@@ -273,19 +343,31 @@ impl BomSearch {
     fn view_bom_contents(&self, bom: &Bom) -> iced::Element<'_, SearchMessage> {
         let mut rows = vec![
             widget::row![
-                widget::text(format!("{}", bom.name)).width(Length::Fill),
-                widget::button("Change stock").width(140.0), // TODO: Come up with a much better
-                                                             // name for stock management
+                widget::text(format!("{}", bom.name))
+                    .width(Length::Fill)
+                    .size(36.0),
+                widget::text_input("", &self.stock_quantity)
+                    .width(60.0)
+                    .on_input(SearchMessage::StockQuantity),
+                widget::button("Restock")
+                    .width(80.0)
+                    .on_press(SearchMessage::RestockBom(self.expanded.clone().unwrap())),
+                widget::button("Deplete")
+                    .width(80.0)
+                    .on_press(SearchMessage::DepleteBom(self.expanded.clone().unwrap())),
             ]
+            .spacing(4.0)
+            .align_y(Alignment::Center)
             .into(),
+            widget::vertical_space().height(12.0).into(),
             widget::text(format!("{}", bom.description)).into(),
             widget::horizontal_rule(2.0).into(),
             widget::vertical_space().height(4.0).into(),
             widget::row![
-                widget::text("Name").width(Length::Fill),
-                widget::text("Description").width(Length::Fill),
-                widget::text("Count").width(60.0),
-                widget::text("Stock").width(60.0),
+                table_header("Name").width(Length::Fill),
+                table_header("Description").width(Length::Fill),
+                table_header("Count").width(60.0).align_x(Alignment::End),
+                table_header("Stock").width(60.0).align_x(Alignment::End),
             ]
             .spacing(16.0)
             .into(),
@@ -296,15 +378,32 @@ impl BomSearch {
             widget::row![
                 widget::text(&p.name).width(Length::Fill),
                 widget::text(&p.description).width(Length::Fill),
-                widget::text(&p.count).width(60.0),
-                widget::text(&p.stock).width(60.0),
+                widget::text(&p.count).width(60.0).align_x(Alignment::End),
+                widget::text(&p.stock).width(60.0).align_x(Alignment::End),
             ]
+            .align_y(Alignment::Center)
             .spacing(16.0)
             .into()
         }));
 
-        rows.push(widget::scrollable(parts).into());
+        rows.push(widget::scrollable(parts).height(Length::Fill).into());
+        rows.push(
+            widget::container(widget::button("Close").on_press(SearchMessage::CloseBom))
+                .center_x(Length::Fill)
+                .into(),
+        );
 
         widget::column(rows).into()
     }
+}
+
+pub fn table_header(label: &str) -> widget::Text {
+    let mut bold = Font::DEFAULT;
+    bold.weight = Weight::Bold;
+    widget::text(label).font(bold).style(|theme: &Theme| {
+        let palette = theme.extended_palette();
+        widget::text::Style {
+            color: palette.primary.strong.color.into(),
+        }
+    })
 }

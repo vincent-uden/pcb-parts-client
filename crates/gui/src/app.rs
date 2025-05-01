@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use common::{
-    models::{Part, PartWithStock, User},
+    models::{Part, PartWithCountAndStock, PartWithStock, User},
     network::NetworkClient,
 };
 use iced::{Border, Color, Element, Length, Subscription, Theme, event::listen_with, widget};
@@ -12,12 +12,13 @@ use crate::{
     CONFIG,
     grid::{GridMessage, widget::GridWidget},
     search::{SearchMessage, widget::Search},
+    settings::Grid,
 };
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
     /// Tells the grid to highlight some parts
-    HighlightParts(Vec<PartWithStock>),
+    HighlightParts(Vec<PartWithCountAndStock>),
     SearchMessage(SearchMessage),
     GridMessage(GridMessage),
     Modal(OpenModal),
@@ -98,7 +99,10 @@ impl App {
 
     pub fn update(&mut self, message: AppMessage) -> iced::Task<AppMessage> {
         match message {
-            AppMessage::HighlightParts(vec) => todo!(),
+            AppMessage::HighlightParts(vec) => self
+                .grid
+                .update(GridMessage::HighlightParts(vec))
+                .map(AppMessage::GridMessage),
             AppMessage::Quit => match self.modal {
                 OpenModal::None => iced::exit(),
                 _ => iced::Task::none(),
@@ -106,6 +110,17 @@ impl App {
             AppMessage::SearchMessage(SearchMessage::ChangeStock(part)) => {
                 iced::Task::done(AppMessage::Modal(OpenModal::ChangeStock(part)))
             }
+            AppMessage::SearchMessage(ref msg @ SearchMessage::BomPartsSearchResult(ref part)) => {
+                self.search
+                    .update(msg.clone())
+                    .map(AppMessage::SearchMessage)
+                    .chain(iced::Task::done(AppMessage::HighlightParts(part.clone())))
+            }
+            AppMessage::SearchMessage(ref msg @ SearchMessage::CloseBom) => self
+                .search
+                .update(msg.clone())
+                .map(AppMessage::SearchMessage)
+                .chain(iced::Task::done(AppMessage::HighlightParts(vec![]))),
             AppMessage::SearchMessage(search_message) => self
                 .search
                 .update(search_message)

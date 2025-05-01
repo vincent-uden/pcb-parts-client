@@ -1,10 +1,11 @@
 use std::{collections::HashMap, fmt::Display, fs, io::Read, sync::Arc};
 
 use anyhow::{Result, anyhow};
+use futures::future::join_all;
 use reqwest::{Client, RequestBuilder};
 use reqwest_cookie_store::CookieStoreMutex;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 use url::Url;
 
 use crate::models::{Bom, Part, PartWithCountAndStock, PartWithStock, Profile, StockRows, User};
@@ -41,11 +42,7 @@ impl UserData {
 }
 
 impl NetworkClient {
-    fn build_get(
-        &mut self,
-        route: &str,
-        params: &[(impl Display, impl Display)],
-    ) -> RequestBuilder {
+    fn build_get(&self, route: &str, params: &[(impl Display, impl Display)]) -> RequestBuilder {
         let mut query_string = String::new();
         for (k, v) in params {
             query_string.push_str(&format!("&{}={}", k, v));
@@ -58,7 +55,7 @@ impl NetworkClient {
         self.client.get(url.as_str())
     }
 
-    fn build_post<T>(&mut self, route: &str, body: &T) -> RequestBuilder
+    fn build_post<T>(&self, route: &str, body: &T) -> RequestBuilder
     where
         T: Serialize + ?Sized,
     {
@@ -231,6 +228,55 @@ impl NetworkClient {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn stock_parts(
+        &mut self,
+        profile_id: i64,
+        parts: &[PartWithCountAndStock],
+        diff: i64,
+    ) -> Result<()> {
+        let mut futures = vec![];
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct StockBody {
+            profile_id: i64,
+            part_id: i64,
+            stock: i64,
+            column: i64,
+            row: i64,
+            z: i64,
+        }
+        for p in parts {
+            let body = StockBody {
+                profile_id,
+                part_id: p.id,
+                stock: p.stock + diff * p.count,
+                column: p.column,
+                row: p.row,
+                z: p.z,
+            };
+            futures.push(self.build_post("/api/stock", &body).send());
+        }
+        let results = join_all(futures).await;
+        let mut success = true;
+        for (i, r) in results.into_iter().enumerate() {
+            match r {
+                Ok(resp) => {
+                    let text = resp.text().await?;
+                    info!("{}", text);
+                }
+                Err(e) => {
+                    success = false;
+                    error!("Error: {:?} while stocking {:?}", e, parts[i].name)
+                }
+            }
+        }
+        if success {
+            Ok(())
+        } else {
+            Err(anyhow!("Couldnt change stock"))
+        }
     }
 
     pub async fn list_boms(

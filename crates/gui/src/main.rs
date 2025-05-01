@@ -1,4 +1,5 @@
 use anyhow::Result;
+use search::SearchMessage;
 use std::{
     fs, io,
     path::PathBuf,
@@ -6,7 +7,7 @@ use std::{
     sync::{LazyLock, RwLock},
 };
 
-use app::App;
+use app::{App, AppMessage};
 use clap::Parser;
 use iced::Theme;
 use settings::keymap::Config;
@@ -51,7 +52,12 @@ fn main() -> iced::Result {
         .theme(theme)
         .font(iced_fonts::REQUIRED_FONT_BYTES)
         .subscription(App::subscription)
-        .run_with(|| (App::new(), iced::Task::none()))
+        .run_with(|| {
+            (
+                App::new(),
+                iced::Task::done(AppMessage::SearchMessage(SearchMessage::SubmitQuery)),
+            )
+        })
 }
 
 pub fn theme(app: &App) -> Theme {

@@ -12,5 +12,12 @@ pub enum SearchMessage {
     BomPartsSearchResult(Vec<PartWithCountAndStock>),
     FailedSearch(String),
     ChangeStock(PartWithStock),
+    DepleteBom(Bom),
+    RestockBom(Bom),
+    StockQuantity(String),
     OpenBom(Bom),
+    CloseBom,
+    RefreshBom(Bom),
+    StockChangeFailed,
+    StockChangeSuccess(i64),
 }
