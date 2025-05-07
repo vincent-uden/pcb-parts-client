@@ -3,8 +3,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use common::{
-    models::{Part, PartWithCountAndStock, PartWithStock, User},
-    network::NetworkClient,
+    models::{Part, PartWithCountAndStock, PartWithStock, Profile, User},
+    network::{self, NetworkClient},
 };
 use iced::{Border, Color, Element, Length, Subscription, Theme, event::listen_with, widget};
 
@@ -32,6 +32,13 @@ pub enum AppMessage {
     LoginModalPassword(String),
     ConfirmLogin,
     LoginSuccess,
+    ProfilesFetched(Vec<Profile>),
+    ProfilesFetchFail,
+    SelectProfile(i64),
+    ConfirmProfile,
+    NewProfile,
+    NewProfilePending(String),
+    NewProfileFailed,
     Quit,
     StockModalFail,
     LoginFail,
@@ -51,6 +58,7 @@ pub enum OpenModal {
     None,
     ChangeStock(PartWithStock),
     Login,
+    SelectProfile,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -67,6 +75,13 @@ pub struct LoginModalData {
     pub password: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ProfileModalData {
+    pub new_name: String,
+    pub profiles: Vec<Profile>,
+    pub selected_prof: Option<i64>,
+}
+
 #[derive(Debug)]
 pub struct App {
     pub dark_mode: bool,
@@ -77,10 +92,13 @@ pub struct App {
     modal: OpenModal,
     stock_modal_data: StockModalData,
     login_modal_data: LoginModalData,
+    profile_modal_data: ProfileModalData,
 }
 
 impl App {
     pub fn new() -> Self {
+        // TODO: Show profile and wether connected to prod or dev db
+        // TODO: Error states
         // TODO: Cli flag for this
         let network = Arc::new(Mutex::new(NetworkClient::local_client()));
         let config = CONFIG.read().unwrap();
@@ -94,6 +112,7 @@ impl App {
             modal: OpenModal::default(),
             stock_modal_data: StockModalData::default(),
             login_modal_data: LoginModalData::default(),
+            profile_modal_data: ProfileModalData::default(),
         }
     }
 
@@ -126,21 +145,40 @@ impl App {
                 .update(search_message)
                 .map(AppMessage::SearchMessage),
             AppMessage::Modal(open_modal) => {
-                match &open_modal {
-                    OpenModal::None => {}
+                self.modal = open_modal;
+                match &self.modal {
+                    OpenModal::None => iced::Task::none(),
                     OpenModal::ChangeStock(part_with_stock) => {
                         self.stock_modal_data.column = part_with_stock.column.to_string();
                         self.stock_modal_data.row = part_with_stock.row.to_string();
                         self.stock_modal_data.z = part_with_stock.z.to_string();
+                        iced::Task::none()
                     }
                     OpenModal::Login => {
                         self.login_modal_data = LoginModalData::default();
+                        iced::Task::none()
+                    }
+                    OpenModal::SelectProfile => {
+                        self.profile_modal_data.profiles.clear();
+                        if let Some(id) = self
+                            .network
+                            .blocking_lock()
+                            .user_data
+                            .profile
+                            .as_ref()
+                            .map(|p| p.id)
+                        {
+                            self.profile_modal_data.selected_prof = Some(id);
+                        }
+                        iced::Task::perform(Self::fetch_profiles(self.network.clone()), |output| {
+                            match output {
+                                Ok(p) => AppMessage::ProfilesFetched(p),
+                                Err(_) => AppMessage::ProfilesFetchFail,
+                            }
+                        })
                     }
                 }
-                self.modal = open_modal;
-                iced::Task::none()
             }
-            // TODO: Data validation? Numerical fields
             AppMessage::StockModalAmount(s) => {
                 self.stock_modal_data.stock_diff = s;
                 iced::Task::none()
@@ -208,6 +246,42 @@ impl App {
                 iced::Task::none()
             }
             AppMessage::LoginFail => iced::Task::none(),
+            AppMessage::ProfilesFetched(vec) => {
+                self.profile_modal_data.profiles = vec;
+                iced::Task::none()
+            }
+            AppMessage::ProfilesFetchFail => iced::Task::none(),
+            AppMessage::SelectProfile(id) => {
+                self.profile_modal_data.selected_prof = Some(id);
+                iced::Task::none()
+            }
+            AppMessage::ConfirmProfile => iced::Task::perform(
+                Self::confirm_login(
+                    self.network.clone(),
+                    self.profile_modal_data
+                        .profiles
+                        .iter()
+                        .find(|p| p.id == self.profile_modal_data.selected_prof.unwrap_or(-1))
+                        .unwrap()
+                        .clone(),
+                ),
+                |_| AppMessage::Modal(OpenModal::None),
+            ),
+            AppMessage::NewProfile => iced::Task::perform(
+                Self::create_new_profile(
+                    self.network.clone(),
+                    self.profile_modal_data.new_name.clone(),
+                ),
+                |output| match output {
+                    Ok(_) => AppMessage::Modal(OpenModal::SelectProfile),
+                    Err(_) => AppMessage::NewProfileFailed,
+                },
+            ),
+            AppMessage::NewProfileFailed => iced::Task::none(),
+            AppMessage::NewProfilePending(s) => {
+                self.profile_modal_data.new_name = s;
+                iced::Task::none()
+            }
         }
     }
 
@@ -234,6 +308,11 @@ impl App {
             OpenModal::Login => modal(
                 root,
                 self.draw_login_modal(),
+                AppMessage::Modal(OpenModal::None),
+            ),
+            OpenModal::SelectProfile => modal(
+                root,
+                self.draw_profile_modal(),
                 AppMessage::Modal(OpenModal::None),
             ),
         }
@@ -302,6 +381,7 @@ impl App {
     }
 
     pub fn subscription(&self) -> Subscription<AppMessage> {
+        // TODO: HERE --- Ignore keybinds if in certain, special states such as in text inputs
         let keys = listen_with(|event, _, _| match event {
             iced::Event::Keyboard(event) => {
                 let mut config = CONFIG.write().unwrap();
@@ -341,6 +421,59 @@ impl App {
         .into()
     }
 
+    fn draw_profile_modal(&self) -> iced::Element<'_, AppMessage> {
+        // TODO: HERE --- Add profile creation
+        let mut col = widget::column![
+            widget::text("Select Profile"),
+            widget::vertical_space().height(8.0),
+        ]
+        .spacing(4.0);
+        for prof in &self.profile_modal_data.profiles {
+            let selected = prof.id == self.profile_modal_data.selected_prof.unwrap_or(-1);
+            col = col.push(
+                widget::button(widget::text(&prof.name))
+                    .style(move |theme: &Theme, _status| {
+                        // This needs to
+                        // be a button styled to look like text
+                        let palette = theme.extended_palette();
+                        widget::button::Style {
+                            text_color: if selected {
+                                palette.success.base.color.into()
+                            } else {
+                                palette.background.base.text.into()
+                            },
+                            background: None,
+                            ..Default::default()
+                        }
+                    })
+                    .on_press(AppMessage::SelectProfile(prof.id)),
+            );
+        }
+        col = col.push(widget::button("Select").on_press(AppMessage::ConfirmProfile));
+        col = col.extend(vec![
+            widget::horizontal_rule(4.0).into(),
+            widget::text_input("New profile name", &self.profile_modal_data.new_name)
+                .on_input(AppMessage::NewProfilePending)
+                .into(),
+            widget::button("Create new profile")
+                .on_press(AppMessage::NewProfile)
+                .into(),
+        ]);
+        widget::container(col)
+            .style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                widget::container::Style {
+                    text_color: Some(palette.background.weak.text),
+                    background: Some(palette.background.weak.color.into()),
+                    border: Border::default().rounded(8.0),
+                    ..Default::default()
+                }
+            })
+            .padding(16.0)
+            .width(300.0)
+            .into()
+    }
+
     async fn login(network: Arc<Mutex<NetworkClient>>, data: LoginModalData) -> Result<()> {
         let mut n = network.lock().await;
         n.login(User {
@@ -349,6 +482,22 @@ impl App {
             password: data.password,
         })
         .await
+    }
+
+    async fn fetch_profiles(network: Arc<Mutex<NetworkClient>>) -> Result<Vec<Profile>> {
+        let mut n = network.lock().await;
+        n.get_profiles(None).await
+    }
+
+    async fn confirm_login(network: Arc<Mutex<NetworkClient>>, profile: Profile) -> Result<()> {
+        let mut n = network.lock().await;
+        n.user_data.profile = Some(profile);
+        Ok(())
+    }
+
+    async fn create_new_profile(network: Arc<Mutex<NetworkClient>>, name: String) -> Result<()> {
+        let mut n = network.lock().await;
+        n.new_profile(name).await
     }
 }
 

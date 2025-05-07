@@ -13,6 +13,7 @@ use super::Grid;
 #[derive(Debug, EnumString, Clone, Copy, PartialEq, Eq)]
 pub enum BindableMessage {
     Login,
+    SelectProfile,
     Quit,
 }
 
@@ -21,6 +22,7 @@ impl From<BindableMessage> for AppMessage {
         match value {
             BindableMessage::Quit => AppMessage::Quit,
             BindableMessage::Login => AppMessage::Modal(OpenModal::Login),
+            BindableMessage::SelectProfile => AppMessage::Modal(OpenModal::SelectProfile),
         }
     }
 }
