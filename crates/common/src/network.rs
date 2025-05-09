@@ -105,7 +105,7 @@ impl NetworkClient {
     }
 
     pub async fn login(&mut self, user: User) -> Result<()> {
-        let resp_text = self.build_post("/api/user/session", &user).send().await?;
+        let _resp_text = self.build_post("/api/user/session", &user).send().await?;
         {
             let cs = self.cookie_store.lock().unwrap();
             if let Ok(mut file) =
@@ -119,9 +119,8 @@ impl NetworkClient {
                 println!("Couldnt open file");
             }
         };
-        // TODO: Allow for profile selection. Currently auto-selecting the first available profile
         let profiles = self.get_profiles(None).await?;
-        self.user_data.profile = Some(profiles[0].clone());
+        self.user_data.profile = profiles.first().cloned();
         self.user_data.save()?;
         Ok(())
     }
@@ -350,10 +349,10 @@ impl NetworkClient {
         bom_id: i64,
     ) -> Result<Vec<PartWithCountAndStock>> {
         let resp = self
-            .build_get("/api/bom/parts", &[
-                ("profileId", profile_id),
-                ("bomId", bom_id),
-            ])
+            .build_get(
+                "/api/bom/parts",
+                &[("profileId", profile_id), ("bomId", bom_id)],
+            )
             .send()
             .await?
             .text()

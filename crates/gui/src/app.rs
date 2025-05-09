@@ -32,6 +32,9 @@ pub enum AppMessage {
     LoginModalEmail(String),
     LoginModalPassword(String),
     ConfirmLogin,
+    LoginModalNewEmail(String),
+    LoginModalNewPassword(String),
+    ConfirmUserCreation,
     LoginSuccess,
     ProfilesFetched(Vec<Profile>),
     ProfilesFetchFail,
@@ -43,6 +46,8 @@ pub enum AppMessage {
     Quit,
     StockModalFail,
     LoginFail,
+    UserCreationFailed,
+    UserCreationSuccess,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -74,6 +79,8 @@ pub struct StockModalData {
 pub struct LoginModalData {
     pub email: String,
     pub password: String,
+    pub new_email: String,
+    pub new_password: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -283,6 +290,31 @@ impl App {
                 self.profile_modal_data.new_name = s;
                 iced::Task::none()
             }
+            AppMessage::LoginModalNewEmail(s) => {
+                self.login_modal_data.new_email = s;
+                iced::Task::none()
+            }
+            AppMessage::LoginModalNewPassword(s) => {
+                self.login_modal_data.new_password = s;
+                iced::Task::none()
+            }
+            AppMessage::ConfirmUserCreation => iced::Task::perform(
+                Self::create_user(
+                    self.network.clone(),
+                    self.login_modal_data.new_email.clone(),
+                    self.login_modal_data.new_password.clone(),
+                ),
+                |output| match output {
+                    Ok(_) => AppMessage::UserCreationSuccess,
+                    Err(_) => AppMessage::UserCreationFailed,
+                },
+            ),
+            AppMessage::UserCreationFailed => iced::Task::none(),
+            AppMessage::UserCreationSuccess => {
+                self.login_modal_data.email = self.login_modal_data.new_email.clone();
+                self.login_modal_data.password = self.login_modal_data.new_password.clone();
+                iced::Task::done(AppMessage::ConfirmLogin)
+            }
         }
     }
 
@@ -404,7 +436,18 @@ impl App {
                 widget::text_input("Password", &self.login_modal_data.password)
                     .secure(true)
                     .on_input(AppMessage::LoginModalPassword),
-                widget::button("Login").on_press(AppMessage::ConfirmLogin)
+                widget::button("Login").on_press(AppMessage::ConfirmLogin),
+                widget::vertical_space().height(8.0),
+                widget::horizontal_rule(4.0),
+                widget::vertical_space().height(8.0),
+                widget::text("Create new account"),
+                widget::vertical_space().height(8.0),
+                widget::text_input("Email", &self.login_modal_data.new_email)
+                    .on_input(AppMessage::LoginModalNewEmail),
+                widget::text_input("Password", &self.login_modal_data.new_password)
+                    .secure(true)
+                    .on_input(AppMessage::LoginModalNewPassword),
+                widget::button("Create").on_press(AppMessage::ConfirmUserCreation),
             ]
             .spacing(4.0),
         )
@@ -499,6 +542,20 @@ impl App {
     async fn create_new_profile(network: Arc<Mutex<NetworkClient>>, name: String) -> Result<()> {
         let mut n = network.lock().await;
         n.new_profile(name).await
+    }
+
+    async fn create_user(
+        network: Arc<Mutex<NetworkClient>>,
+        email: String,
+        password: String,
+    ) -> Result<()> {
+        let mut n = network.lock().await;
+        n.create_user(User {
+            email,
+            password,
+            ..Default::default()
+        })
+        .await
     }
 }
 
