@@ -466,7 +466,6 @@ impl App {
     }
 
     fn draw_profile_modal(&self) -> iced::Element<'_, AppMessage> {
-        // TODO: HERE --- Add profile creation
         let mut col = widget::column![
             widget::text("Select Profile"),
             widget::vertical_space().height(8.0),

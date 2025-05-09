@@ -10,7 +10,6 @@ use url::Url;
 
 use crate::models::{Bom, Part, PartWithCountAndStock, PartWithStock, Profile, StockRows, User};
 
-// TODO: Store the profile id along with the cookie
 #[derive(Debug)]
 pub struct NetworkClient {
     client: Client,
