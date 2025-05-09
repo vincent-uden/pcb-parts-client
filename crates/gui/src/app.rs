@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::debug;
 
 use common::{
     models::{Part, PartWithCountAndStock, PartWithStock, Profile, User},
@@ -99,7 +100,7 @@ impl App {
     pub fn new() -> Self {
         // TODO: Show profile and wether connected to prod or dev db
         // TODO: Error states
-        // TODO: Cli flag for this
+        // TODO: Cli flag for network client
         let network = Arc::new(Mutex::new(NetworkClient::local_client()));
         let config = CONFIG.read().unwrap();
 

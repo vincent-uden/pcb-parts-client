@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::{fs, str::FromStr};
 
 use keybinds::Keybinds;
-use logos::Logos;
+use logos::{Logos, Skip};
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
 
@@ -57,7 +57,8 @@ impl FromStr for Config {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let lexer = Token::lexer(s);
+        let sanitized = s.chars().filter(|&c| c != '\r').collect::<String>();
+        let lexer = Token::lexer(&sanitized);
 
         let mut expecting_statement = true;
 

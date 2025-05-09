@@ -6,6 +6,7 @@ use std::{
     str::FromStr,
     sync::{LazyLock, RwLock},
 };
+use tracing::debug;
 
 use app::{App, AppMessage};
 use clap::Parser;
@@ -31,6 +32,7 @@ static CONFIG: LazyLock<RwLock<Config>> = LazyLock::new(|| RwLock::new(Config::d
     author = "Vincent Udén"
 )]
 struct Args {
+    #[arg(long, short)]
     config: Option<PathBuf>,
 }
 
