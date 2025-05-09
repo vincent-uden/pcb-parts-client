@@ -29,9 +29,10 @@ struct UpdateProfileBody {
     name: String,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct UserData {
     pub profile: Option<Profile>,
+    pub user: Option<User>,
 }
 impl UserData {
     fn save(&self) -> Result<()> {
@@ -91,6 +92,10 @@ impl NetworkClient {
         }
     }
 
+    pub fn host_name(&self) -> String {
+        self.base_url.host_str().unwrap_or_default().to_string()
+    }
+
     pub async fn create_user(&mut self, pending: User) -> Result<()> {
         let resp_text = self
             .build_post("/api/user/create", &pending)
@@ -114,6 +119,7 @@ impl NetworkClient {
                 #[allow(deprecated)]
                 cs.save_incl_expired_and_nonpersistent_json(&mut file)
                     .unwrap();
+                self.user_data.user = Some(user);
             } else {
                 println!("Couldnt open file");
             }

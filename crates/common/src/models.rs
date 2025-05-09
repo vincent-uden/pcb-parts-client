@@ -84,7 +84,7 @@ pub struct User {
     pub password: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Tabled)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
     pub id: i64,

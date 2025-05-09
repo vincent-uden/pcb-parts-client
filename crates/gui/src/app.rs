@@ -7,11 +7,17 @@ use common::{
     models::{Part, PartWithCountAndStock, PartWithStock, Profile, User},
     network::{self, NetworkClient},
 };
-use iced::{Border, Color, Element, Length, Subscription, Theme, event::listen_with, widget};
+use iced::{
+    Border, Color, Element, Length, Subscription, Theme, alignment,
+    event::listen_with,
+    theme::palette,
+    widget::{self, svg},
+};
 
 use crate::{
     CONFIG,
     grid::{GridMessage, widget::GridWidget},
+    icons,
     search::{SearchMessage, widget::Search},
     settings::Grid,
 };
@@ -105,7 +111,6 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        // TODO: Show profile and wether connected to prod or dev db
         // TODO: Error states
         // TODO: Cli flag for network client
         let network = Arc::new(Mutex::new(NetworkClient::local_client()));
@@ -319,7 +324,8 @@ impl App {
     }
 
     pub fn view(&self) -> iced::Element<'_, AppMessage> {
-        let root = widget::container(
+        let root = widget::container(widget::column![
+            self.draw_status_bar(),
             widget::row!(
                 match self.tab {
                     AppTab::Search => self.draw_search_tab(),
@@ -328,7 +334,7 @@ impl App {
                 self.grid.view().map(AppMessage::GridMessage),
             )
             .spacing(16.0),
-        )
+        ])
         .center(Length::Fill)
         .padding(16.0);
         match &self.modal {
@@ -410,6 +416,41 @@ impl App {
         })
         .padding(16.0)
         .width(300.0)
+        .into()
+    }
+
+    fn draw_status_bar(&self) -> iced::Element<'_, AppMessage> {
+        let n = self.network.blocking_lock();
+        let user_data = n.user_data.clone();
+        widget::row![
+            widget::horizontal_space().width(Length::Fill),
+            widget::text(user_data.user.unwrap_or_default().email),
+            widget::vertical_rule(2.0),
+            widget::svg(icons::user())
+                .width(18.0)
+                .height(18.0)
+                .style(|theme: &Theme, _| {
+                    let palette = theme.palette();
+                    svg::Style {
+                        color: Some(palette.text),
+                    }
+                }),
+            widget::text(user_data.profile.unwrap_or_default().name),
+            widget::vertical_rule(2.0),
+            widget::svg(icons::server())
+                .width(18.0)
+                .height(18.0)
+                .style(|theme: &Theme, _| {
+                    let palette = theme.palette();
+                    svg::Style {
+                        color: Some(palette.text),
+                    }
+                }),
+            widget::text(n.host_name()),
+        ]
+        .spacing(4.0)
+        .align_y(alignment::Vertical::Center)
+        .height(Length::Shrink)
         .into()
     }
 

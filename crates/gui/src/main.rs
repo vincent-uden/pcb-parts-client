@@ -16,6 +16,7 @@ use tracing_subscriber::EnvFilter;
 
 mod app;
 mod grid;
+mod icons;
 mod search;
 mod settings;
 
