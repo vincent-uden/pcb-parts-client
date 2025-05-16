@@ -14,6 +14,8 @@ use super::Grid;
 pub enum BindableMessage {
     Login,
     SelectProfile,
+    ImportTab,
+    SearchTab,
     Quit,
 }
 
@@ -23,6 +25,8 @@ impl From<BindableMessage> for AppMessage {
             BindableMessage::Quit => AppMessage::Quit,
             BindableMessage::Login => AppMessage::Modal(OpenModal::Login),
             BindableMessage::SelectProfile => AppMessage::Modal(OpenModal::SelectProfile),
+            BindableMessage::ImportTab => AppMessage::Tab(crate::app::AppTab::BomImport),
+            BindableMessage::SearchTab => AppMessage::Tab(crate::app::AppTab::Search),
         }
     }
 }

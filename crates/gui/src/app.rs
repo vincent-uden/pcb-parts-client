@@ -16,6 +16,7 @@ use iced::{
 
 use crate::{
     CONFIG,
+    bom_importer::{self, widget::BomImporter},
     grid::{GridMessage, widget::GridWidget},
     icons,
     search::{SearchMessage, widget::Search},
@@ -27,8 +28,10 @@ pub enum AppMessage {
     /// Tells the grid to highlight some parts
     HighlightParts(Vec<PartWithCountAndStock>),
     SearchMessage(SearchMessage),
+    BomImportMessage(bom_importer::Msg),
     GridMessage(GridMessage),
     Modal(OpenModal),
+    Tab(AppTab),
     StockModalAmount(String),
     StockModalRow(String),
     StockModalColumn(String),
@@ -107,6 +110,7 @@ pub struct App {
     stock_modal_data: StockModalData,
     login_modal_data: LoginModalData,
     profile_modal_data: ProfileModalData,
+    bom_importer: BomImporter,
 }
 
 impl App {
@@ -126,6 +130,7 @@ impl App {
             stock_modal_data: StockModalData::default(),
             login_modal_data: LoginModalData::default(),
             profile_modal_data: ProfileModalData::default(),
+            bom_importer: BomImporter::new(),
         }
     }
 
@@ -191,6 +196,10 @@ impl App {
                         })
                     }
                 }
+            }
+            AppMessage::Tab(app_tab) => {
+                self.tab = app_tab;
+                iced::Task::none()
             }
             AppMessage::StockModalAmount(s) => {
                 self.stock_modal_data.stock_diff = s;
@@ -320,6 +329,7 @@ impl App {
                 self.login_modal_data.password = self.login_modal_data.new_password.clone();
                 iced::Task::done(AppMessage::ConfirmLogin)
             }
+            AppMessage::BomImportMessage(msg) => todo!(),
         }
     }
 
@@ -329,6 +339,7 @@ impl App {
             widget::row!(
                 match self.tab {
                     AppTab::Search => self.draw_search_tab(),
+                    AppTab::BomImport => self.draw_bom_import_tab(),
                     _ => todo!(),
                 },
                 self.grid.view().map(AppMessage::GridMessage),
@@ -360,6 +371,12 @@ impl App {
     fn draw_search_tab(&self) -> iced::Element<'_, AppMessage> {
         widget::row(vec![self.search.view().map(AppMessage::SearchMessage)])
             .spacing(16.0)
+            .into()
+    }
+
+    fn draw_bom_import_tab(&self) -> iced::Element<'_, AppMessage> {
+        widget::container(self.bom_importer.view().map(AppMessage::BomImportMessage))
+            .width(Length::Fill)
             .into()
     }
 

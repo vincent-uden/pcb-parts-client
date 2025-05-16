@@ -15,6 +15,7 @@ use settings::keymap::Config;
 use tracing_subscriber::EnvFilter;
 
 mod app;
+mod bom_importer;
 mod grid;
 mod icons;
 mod search;
