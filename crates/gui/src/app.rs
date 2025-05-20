@@ -329,7 +329,10 @@ impl App {
                 self.login_modal_data.password = self.login_modal_data.new_password.clone();
                 iced::Task::done(AppMessage::ConfirmLogin)
             }
-            AppMessage::BomImportMessage(msg) => todo!(),
+            AppMessage::BomImportMessage(msg) => self
+                .bom_importer
+                .update(msg)
+                .map(AppMessage::BomImportMessage),
         }
     }
 

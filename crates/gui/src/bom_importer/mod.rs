@@ -15,8 +15,12 @@ pub struct PartCandidate {
 
 #[derive(Debug, Clone)]
 pub enum Msg {
-    LoadFile(PathBuf),
-    LoadSuccess(Vec<PartCandidate>),
-    LoadFailed,
+    PendingPath(String),
+    OpenFile,
+    OpenSuccess(Vec<String>),
+    OpenFailed,
     BomName(String),
+    SelectNameColumn(String),
+    SelectDescriptionColumn(String),
+    SelectCountColumn(String),
 }

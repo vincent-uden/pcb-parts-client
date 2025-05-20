@@ -58,3 +58,9 @@ pub fn csv_to_bom(
 
     Ok(out)
 }
+
+pub fn csv_to_headers(path: &Path) -> Result<Vec<String>> {
+    let mut rdr = ReaderBuilder::new().has_headers(true).from_path(path)?;
+    let headers = rdr.headers()?;
+    Ok(headers.iter().map(String::from).collect())
+}
