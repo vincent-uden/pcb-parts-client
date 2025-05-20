@@ -8,9 +8,8 @@ anyhow = "1.0.98"
 async-trait = "0.1.88"
 clap = { version = "4.5.37", features = ["derive"] }
 common = {path="../common"}
-iced = { version = "0.13.1", features = ["tokio", "svg"] }
-iced_fonts = "0.2.1"
-keybinds = { version = "0.1.1", features = ["iced", "serde"] }
+iced = { git = "https://github.com/iced-rs/iced.git", rev="7c5a4bc", version = "0.14.0-dev", features = ["tokio", "svg"] }
+keybinds = { git = "https://github.com/vincent-uden/keybinds-rs.git", version = "0.1.1", features = ["iced", "serde"] }
 lazy_static = "1.5.0"
 logos = "0.15.0"
 serde = { version = "1.0.219", features = ["derive"] }

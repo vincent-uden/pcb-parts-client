@@ -50,18 +50,22 @@ fn main() -> iced::Result {
         *c = Config::from_str(&fs::read_to_string(&p).unwrap()).unwrap();
     }
 
-    iced::application("App", App::update, App::view)
-        .antialiasing(true)
-        .window_size((1200.0, 800.0))
-        .theme(theme)
-        .font(iced_fonts::REQUIRED_FONT_BYTES)
-        .subscription(App::subscription)
-        .run_with(|| {
+    iced::application(
+        || {
             (
                 App::new(),
                 iced::Task::done(AppMessage::SearchMessage(SearchMessage::SubmitQuery)),
             )
-        })
+        },
+        App::update,
+        App::view,
+    )
+    .antialiasing(true)
+    .window_size((1200.0, 800.0))
+    .theme(theme)
+    .subscription(App::subscription)
+    .title("App")
+    .run()
 }
 
 pub fn theme(app: &App) -> Theme {
