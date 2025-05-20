@@ -8,7 +8,7 @@ use common::{
     network::{self, NetworkClient},
 };
 use iced::{
-    Border, Color, Element, Length, Subscription, Theme, alignment,
+    Border, Color, Element, Length, Padding, Subscription, Theme, alignment,
     event::listen_with,
     theme::palette,
     widget::{self, svg},
@@ -441,8 +441,15 @@ impl App {
 
     fn draw_status_bar(&self) -> iced::Element<'_, AppMessage> {
         let n = self.network.blocking_lock();
+        let import_bom_event = AppMessage::Tab(match self.tab {
+            AppTab::BomImport => AppTab::Search,
+            _ => AppTab::BomImport,
+        });
         let user_data = n.user_data.clone();
         widget::row![
+            widget::button("Account").on_press(AppMessage::Modal(OpenModal::Login)),
+            widget::button("Profile").on_press(AppMessage::Modal(OpenModal::SelectProfile)),
+            widget::button("Import BOM").on_press(import_bom_event),
             widget::horizontal_space().width(Length::Fill),
             widget::text(user_data.user.unwrap_or_default().email),
             widget::vertical_rule(2.0),
@@ -471,6 +478,7 @@ impl App {
         .spacing(4.0)
         .align_y(alignment::Vertical::Center)
         .height(Length::Shrink)
+        .padding(Padding::default().bottom(12.0))
         .into()
     }
 
