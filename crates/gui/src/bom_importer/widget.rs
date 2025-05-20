@@ -5,9 +5,11 @@ use common::{
     import::{csv_to_bom, csv_to_headers},
     network::NetworkClient,
 };
-use iced::{Border, Length, Theme, widget};
+use iced::{Alignment, Border, Length, Theme, widget};
 use tokio::sync::Mutex;
 use tracing::debug;
+
+use crate::search::widget::table_header;
 
 use super::{Msg, PartCandidate, PendingBom};
 
@@ -17,6 +19,7 @@ pub struct BomImporter {
     path: String,
     pending: Option<PendingBom>,
     bom_name: String,
+    bom_description: String,
     column_names: Vec<String>,
     name_column: Option<String>,
     description_column: Option<String>,
@@ -29,6 +32,7 @@ impl BomImporter {
         Self {
             path: String::new(),
             bom_name: String::new(),
+            bom_description: String::new(),
             pending: None,
             column_names: vec![],
             name_column: None,
@@ -53,6 +57,10 @@ impl BomImporter {
             Msg::OpenFailed => todo!(),
             Msg::BomName(s) => {
                 self.bom_name = s;
+                iced::Task::none()
+            }
+            Msg::BomDescription(s) => {
+                self.bom_description = s;
                 iced::Task::none()
             }
             Msg::SelectNameColumn(s) => {
@@ -111,6 +119,11 @@ impl BomImporter {
             widget::text_input("", &self.bom_name)
                 .on_input(Msg::BomName)
                 .into(),
+            widget::text("Description").into(),
+            widget::text_input("", &self.bom_description)
+                .on_input(Msg::BomDescription)
+                .into(),
+            self.view_bom_contents(),
         ]);
         let mut column_pickers = widget::Column::new().spacing(4.0);
         if !self.path.is_empty() && !self.column_names.is_empty() {
@@ -148,7 +161,8 @@ impl BomImporter {
         }
 
         widget::container(widget::column![
-            widget::text("BOM Importer"),
+            widget::text("BOM Importer").size(36.0),
+            widget::vertical_space().height(8.0),
             widget::row![
                 widget::text_input("Path", &self.path)
                     .on_input(Msg::PendingPath)
@@ -170,8 +184,50 @@ impl BomImporter {
             }
         })
         .width(Length::Fill)
-        .padding(8.0)
+        .padding(16.0)
         .into()
+    }
+
+    fn view_bom_contents(&self) -> iced::Element<'_, Msg> {
+        if let Some(pending) = &self.pending {
+            let mut rows = vec![
+                widget::vertical_space().height(12.0).into(),
+                widget::horizontal_rule(2.0).into(),
+                widget::vertical_space().height(4.0).into(),
+                widget::row![
+                    table_header("Name").width(Length::Fill),
+                    table_header("Description").width(Length::Fill),
+                    table_header("Count").width(60.0).align_x(Alignment::End),
+                    table_header("Linked").width(60.0).align_x(Alignment::End),
+                ]
+                .spacing(16.0)
+                .into(),
+            ];
+
+            let mut parts = widget::column(vec![]);
+            parts = parts.extend(pending.candidates.iter().map(|p| {
+                widget::row![
+                    widget::text(&p.name).width(Length::Fill),
+                    widget::text(&p.description).width(Length::Fill),
+                    widget::text(&p.count).width(60.0).align_x(Alignment::End),
+                    widget::text(if p.linked_part.is_some() { "Yes" } else { "No" }).width(60.0).align_x(Alignment::End),
+                ]
+                .align_y(Alignment::Center)
+                .spacing(16.0)
+                .into()
+            }));
+
+            rows.push(widget::scrollable(parts).height(Length::Fill).into());
+            rows.push(
+                widget::container(widget::button("Add"))
+                    .center_x(Length::Fill)
+                    .into(),
+            );
+
+            widget::column(rows).into()
+        } else {
+            widget::vertical_space().into()
+        }
     }
 
     async fn fetch_pending_bom(

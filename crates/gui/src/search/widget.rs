@@ -218,7 +218,7 @@ impl Search {
                 ..Default::default()
             }
         })
-        .padding(8.0)
+        .padding(16.0)
         .into()
     }
 }

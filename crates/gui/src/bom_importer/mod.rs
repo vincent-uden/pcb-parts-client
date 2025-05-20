@@ -25,6 +25,7 @@ pub enum Msg {
     OpenSuccess(Vec<String>),
     OpenFailed,
     BomName(String),
+    BomDescription(String),
     SelectNameColumn(String),
     SelectDescriptionColumn(String),
     SelectCountColumn(String),
