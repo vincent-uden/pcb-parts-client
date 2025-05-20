@@ -1,13 +1,14 @@
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use common::{
     import::{csv_to_bom, csv_to_headers},
+    models::Part,
     network::NetworkClient,
 };
 use iced::{Alignment, Border, Length, Theme, widget};
 use tokio::sync::Mutex;
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::search::widget::table_header;
 
@@ -109,6 +110,32 @@ impl BomImporter {
                 iced::Task::none()
             }
             Msg::PendingFailed => todo!(),
+            Msg::SubmitBom => {
+                if let Some(pending) = self.pending.clone() {
+                    iced::Task::perform(
+                        Self::submit_bom(
+                            self.network.clone(),
+                            pending,
+                            self.bom_name.clone(),
+                            self.bom_description.clone(),
+                        ),
+                        |output| match output {
+                            Ok(_) => Msg::SubmitSuccess,
+                            Err(e) => Msg::SubmitFailed(e.to_string()),
+                        },
+                    )
+                } else {
+                    iced::Task::none()
+                }
+            }
+            Msg::SubmitFailed(e) => {
+                error!("Submission failed {}", e);
+                iced::Task::none()
+            }
+            Msg::SubmitSuccess => {
+                self.reset();
+                iced::Task::none()
+            }
         }
     }
 
@@ -210,7 +237,9 @@ impl BomImporter {
                     widget::text(&p.name).width(Length::Fill),
                     widget::text(&p.description).width(Length::Fill),
                     widget::text(&p.count).width(60.0).align_x(Alignment::End),
-                    widget::text(if p.linked_part.is_some() { "Yes" } else { "No" }).width(60.0).align_x(Alignment::End),
+                    widget::text(if p.linked_part.is_some() { "Yes" } else { "No" })
+                        .width(60.0)
+                        .align_x(Alignment::End),
                 ]
                 .align_y(Alignment::Center)
                 .spacing(16.0)
@@ -219,7 +248,7 @@ impl BomImporter {
 
             rows.push(widget::scrollable(parts).height(Length::Fill).into());
             rows.push(
-                widget::container(widget::button("Add"))
+                widget::container(widget::button("Import").on_press(Msg::SubmitBom))
                     .center_x(Length::Fill)
                     .into(),
             );
@@ -228,6 +257,17 @@ impl BomImporter {
         } else {
             widget::vertical_space().into()
         }
+    }
+
+    fn reset(&mut self) {
+        self.path.clear();
+        self.pending = None;
+        self.bom_name.clear();
+        self.bom_description.clear();
+        self.column_names.clear();
+        self.name_column = None;
+        self.description_column = None;
+        self.count_column = None;
     }
 
     async fn fetch_pending_bom(
@@ -248,5 +288,31 @@ impl BomImporter {
         }
 
         Ok(out)
+    }
+
+    async fn submit_bom(
+        network: Arc<Mutex<NetworkClient>>,
+        pending: PendingBom,
+        name: String,
+        description: String,
+    ) -> Result<()> {
+        let mut parts = vec![];
+        for p in pending.candidates {
+            match p.linked_part {
+                Some(linked) => parts.push((p.count, linked)),
+                None => parts.push((p.count, Part {
+                    id: 0,
+                    name: p.name,
+                    description: p.description,
+                })),
+            }
+        }
+
+        let mut n = network.lock().await;
+        let profile_id = match &n.user_data.profile {
+            Some(p) => p.id,
+            None => return Err(anyhow!("No profile selected")),
+        };
+        n.new_bom(profile_id, name, description, parts).await
     }
 }

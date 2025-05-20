@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Error;
 use common::models::{Part, PartWithStock};
 use serde::{Deserialize, Serialize};
 
@@ -32,4 +33,7 @@ pub enum Msg {
     TryLoadPending,
     PendingFetched(PendingBom),
     PendingFailed,
+    SubmitBom,
+    SubmitFailed(String),
+    SubmitSuccess,
 }

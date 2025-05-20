@@ -1,3 +1,5 @@
 name,desc,count,comment
 LTC4070,A shunt battery charger,3,Blah blah
-LTC4071,A worse battery charger,2,Blah blah 2
+LTC3531,Buck-boost converter,10,...
+LTC3109,Desc,2,asjdlkasj
+LTC3331,A useless circuit,2,asjdlkasj
