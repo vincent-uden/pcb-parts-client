@@ -472,11 +472,15 @@ impl App {
     }
 
     pub fn subscription(&self) -> Subscription<AppMessage> {
-        // TODO: HERE --- Ignore keybinds if in certain, special states such as in text inputs
-        let keys = listen_with(|event, _, _| match event {
+        let keys = listen_with(|event, status, _| match event {
             iced::Event::Keyboard(event) => {
                 let mut config = CONFIG.write().unwrap();
-                config.keyboard.dispatch(event).map(|x| (*x).into())
+                match status {
+                    iced::event::Status::Ignored => {
+                        config.keyboard.dispatch(event).map(|x| (*x).into())
+                    }
+                    iced::event::Status::Captured => None,
+                }
             }
             _ => None,
         });
