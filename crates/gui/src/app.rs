@@ -57,6 +57,9 @@ pub enum AppMessage {
     LoginFail,
     UserCreationFailed,
     UserCreationSuccess,
+    FocusNext,
+    FocusPrevious,
+    Back,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -335,6 +338,12 @@ impl App {
                 .bom_importer
                 .update(msg)
                 .map(AppMessage::BomImportMessage),
+            AppMessage::FocusNext => widget::focus_next(),
+            AppMessage::FocusPrevious => widget::focus_previous(),
+            AppMessage::Back => match self.modal {
+                OpenModal::None => iced::Task::none(),
+                _ => iced::Task::done(AppMessage::Modal(OpenModal::None)),
+            },
         }
     }
 
@@ -374,9 +383,13 @@ impl App {
     }
 
     fn draw_search_tab(&self) -> iced::Element<'_, AppMessage> {
-        widget::row(vec![self.search.view().map(AppMessage::SearchMessage)])
-            .spacing(16.0)
-            .into()
+        widget::row(vec![
+            self.search
+                .view(matches!(self.modal, OpenModal::None))
+                .map(AppMessage::SearchMessage),
+        ])
+        .spacing(16.0)
+        .into()
     }
 
     fn draw_bom_import_tab(&self) -> iced::Element<'_, AppMessage> {

@@ -16,6 +16,9 @@ pub enum BindableMessage {
     SelectProfile,
     ImportTab,
     SearchTab,
+    FocusNext,
+    FocusPrevious,
+    Back,
     Quit,
 }
 
@@ -27,6 +30,9 @@ impl From<BindableMessage> for AppMessage {
             BindableMessage::SelectProfile => AppMessage::Modal(OpenModal::SelectProfile),
             BindableMessage::ImportTab => AppMessage::Tab(crate::app::AppTab::BomImport),
             BindableMessage::SearchTab => AppMessage::Tab(crate::app::AppTab::Search),
+            BindableMessage::FocusNext => AppMessage::FocusNext,
+            BindableMessage::FocusPrevious => AppMessage::FocusPrevious,
+            BindableMessage::Back => AppMessage::Back,
         }
     }
 }

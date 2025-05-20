@@ -173,14 +173,40 @@ impl Search {
         }
     }
 
-    pub fn view(&self) -> iced::Element<'_, SearchMessage> {
+    pub fn view(&self, focused: bool) -> iced::Element<'_, SearchMessage> {
+        let search_bar: iced::Element<'_, SearchMessage> = if focused {
+            widget::text_input("Name or description", &self.query)
+                .on_input(SearchMessage::PendingQuery)
+                .on_submit(SearchMessage::SubmitQuery)
+                .into()
+        } else {
+            widget::container(widget::text("Name or description").style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                widget::text::Style {
+                    color: palette.secondary.strong.color.into(),
+                }
+            }))
+            .style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                widget::container::Style {
+                    background: Some(palette.background.base.color.into()),
+                    border: Border {
+                        color: palette.secondary.strong.color.into(),
+                        width: 1.0,
+                        radius: iced::border::Radius::from(4.0),
+                    },
+                    ..Default::default()
+                }
+            })
+            .padding(4.0)
+            .width(Length::Fill)
+            .into()
+        };
         widget::container(
             widget::column!(
                 widget::row!(
                     // TODO: Search icon
-                    widget::text_input("Name or description", &self.query)
-                        .on_input(SearchMessage::PendingQuery)
-                        .on_submit(SearchMessage::SubmitQuery),
+                    search_bar,
                     widget::horizontal_space().width(16.0),
                     widget::text("Parts"),
                     widget::horizontal_space().width(8.0),
