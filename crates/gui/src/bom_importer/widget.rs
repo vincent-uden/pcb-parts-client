@@ -1,30 +1,41 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, sync::Arc};
 
-use common::import::csv_to_headers;
+use anyhow::Result;
+use common::{
+    import::{csv_to_bom, csv_to_headers},
+    network::NetworkClient,
+};
 use iced::{Border, Length, Theme, widget};
+use tokio::sync::Mutex;
+use tracing::debug;
 
-use super::{Msg, PartCandidate};
-
-#[derive(Debug, Clone)]
-pub struct PendingBom {
-    name: String,
-    candidates: Vec<PartCandidate>,
-}
+use super::{Msg, PartCandidate, PendingBom};
 
 // TODO: File picker for importing
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct BomImporter {
     path: String,
     pending: Option<PendingBom>,
+    bom_name: String,
     column_names: Vec<String>,
     name_column: Option<String>,
     description_column: Option<String>,
     count_column: Option<String>,
+    network: Arc<Mutex<NetworkClient>>,
 }
 
 impl BomImporter {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(network: Arc<Mutex<NetworkClient>>) -> Self {
+        Self {
+            path: String::new(),
+            bom_name: String::new(),
+            pending: None,
+            column_names: vec![],
+            name_column: None,
+            description_column: None,
+            count_column: None,
+            network,
+        }
     }
 
     pub fn update(&mut self, msg: Msg) -> iced::Task<Msg> {
@@ -41,40 +52,66 @@ impl BomImporter {
             }
             Msg::OpenFailed => todo!(),
             Msg::BomName(s) => {
-                if let Some(pending) = &mut self.pending {
-                    pending.name = s;
-                }
+                self.bom_name = s;
                 iced::Task::none()
             }
             Msg::SelectNameColumn(s) => {
                 self.name_column = Some(s);
-                iced::Task::none()
+                iced::Task::done(Msg::TryLoadPending)
             }
             Msg::SelectDescriptionColumn(s) => {
                 self.description_column = Some(s);
-                iced::Task::none()
+                iced::Task::done(Msg::TryLoadPending)
             }
             Msg::SelectCountColumn(s) => {
                 self.count_column = Some(s);
-                iced::Task::none()
+                iced::Task::done(Msg::TryLoadPending)
             }
             Msg::PendingPath(s) => {
                 self.path = s;
                 iced::Task::none()
             }
+            Msg::TryLoadPending => {
+                if let (Some(name), Some(desc), Some(count)) = (
+                    &self.name_column,
+                    &self.description_column,
+                    &self.count_column,
+                ) {
+                    match csv_to_bom(
+                        &PathBuf::from_str(&self.path).unwrap_or_default(),
+                        name,
+                        desc,
+                        count,
+                    ) {
+                        Ok(parts) => iced::Task::perform(
+                            Self::fetch_pending_bom(self.network.clone(), parts),
+                            |output| match output {
+                                Ok(pending) => Msg::PendingFetched(pending),
+                                Err(_) => Msg::PendingFailed,
+                            },
+                        ),
+                        Err(_) => iced::Task::none(),
+                    }
+                } else {
+                    iced::Task::none()
+                }
+            }
+            Msg::PendingFetched(pending_bom) => {
+                self.pending = Some(pending_bom);
+                iced::Task::none()
+            }
+            Msg::PendingFailed => todo!(),
         }
     }
 
     pub fn view(&self) -> iced::Element<'_, Msg> {
         let mut bom_view = widget::Column::new();
-        if let Some(pending) = &self.pending {
-            bom_view = bom_view.extend(vec![
-                widget::text("Name").into(),
-                widget::text_input("", &pending.name)
-                    .on_input(Msg::BomName)
-                    .into(),
-            ]);
-        }
+        bom_view = bom_view.extend(vec![
+            widget::text("Name").into(),
+            widget::text_input("", &self.bom_name)
+                .on_input(Msg::BomName)
+                .into(),
+        ]);
         let mut column_pickers = widget::Column::new().spacing(4.0);
         if !self.path.is_empty() && !self.column_names.is_empty() {
             column_pickers = column_pickers.push(
@@ -119,6 +156,7 @@ impl BomImporter {
             ],
             widget::vertical_space().height(8.0),
             column_pickers,
+            widget::vertical_space().height(8.0),
             bom_view,
         ])
         .height(Length::Fill)
@@ -134,5 +172,25 @@ impl BomImporter {
         .width(Length::Fill)
         .padding(8.0)
         .into()
+    }
+
+    async fn fetch_pending_bom(
+        network: Arc<Mutex<NetworkClient>>,
+        parts: Vec<(i64, common::models::Part)>,
+    ) -> Result<PendingBom> {
+        let mut out = PendingBom { candidates: vec![] };
+        let mut n = network.lock().await;
+
+        for (count, p) in parts {
+            let linked = n.get_parts(Some(p.name.clone()), None).await?;
+            out.candidates.push(PartCandidate {
+                name: p.name,
+                description: p.description,
+                count,
+                linked_part: linked.first().cloned(),
+            });
+        }
+
+        Ok(out)
     }
 }

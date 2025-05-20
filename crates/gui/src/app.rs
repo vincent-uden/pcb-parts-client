@@ -124,13 +124,13 @@ impl App {
             dark_mode: true,
             tab: AppTab::default(),
             search: Search::new(network.clone()),
+            bom_importer: BomImporter::new(network.clone()),
             grid: GridWidget::new(config.grid),
             network,
             modal: OpenModal::default(),
             stock_modal_data: StockModalData::default(),
             login_modal_data: LoginModalData::default(),
             profile_modal_data: ProfileModalData::default(),
-            bom_importer: BomImporter::new(),
         }
     }
 
