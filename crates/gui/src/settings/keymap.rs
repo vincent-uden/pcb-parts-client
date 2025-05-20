@@ -35,6 +35,7 @@ impl From<BindableMessage> for AppMessage {
 pub struct Config {
     pub keyboard: Keybinds<BindableMessage>,
     pub grid: Grid,
+    pub server_kind: ServerKind,
 }
 
 impl Config {
@@ -46,6 +47,7 @@ impl Config {
                 columns: 1,
                 zs: 1,
             },
+            server_kind: ServerKind::Production,
         }
     }
 }
@@ -84,16 +86,20 @@ impl FromStr for Config {
                     if let Some(Some(cmd)) = cmd_name.clone().map(|s| Command::from_str(&s).ok()) {
                         match cmd {
                             Command::Bind => {
-                                assert!(args.len() == 2, "Bind requires two arguments");
+                                assert!(args.len() == 2, "Bind requires 2 arguments");
                                 out.keyboard
                                     .bind(&args[0], BindableMessage::from_str(&args[1]).unwrap())
                                     .unwrap();
                             }
                             Command::Grid => {
-                                assert!(args.len() == 3, "Grid requires three arguments");
+                                assert!(args.len() == 3, "Grid requires 3 arguments");
                                 out.grid.rows = args[0].parse()?;
                                 out.grid.columns = args[1].parse()?;
                                 out.grid.zs = args[2].parse()?;
+                            }
+                            Command::SetServer => {
+                                assert!(args.len() == 1, "SetServer requires 1 argument");
+                                out.server_kind = ServerKind::from_str(&args[0]).unwrap();
                             }
                         }
                     } else {
@@ -130,4 +136,11 @@ enum Token {
 enum Command {
     Bind,
     Grid,
+    SetServer,
+}
+
+#[derive(Debug, EnumString, Clone, Copy, PartialEq, Eq)]
+pub enum ServerKind {
+    Production,
+    Development,
 }

@@ -64,7 +64,7 @@ impl NetworkClient {
             .json(body)
     }
 
-    pub fn local_client() -> Self {
+    fn cookie_store() -> std::sync::Arc<reqwest_cookie_store::CookieStoreMutex> {
         let cookie_store = {
             if let Ok(file) = std::fs::File::open(".cookies.json").map(std::io::BufReader::new) {
                 #[allow(deprecated)]
@@ -74,12 +74,15 @@ impl NetworkClient {
             }
         };
         let cookie_store = reqwest_cookie_store::CookieStoreMutex::new(cookie_store);
-        let cookie_store = std::sync::Arc::new(cookie_store);
+        std::sync::Arc::new(cookie_store)
+    }
 
+    pub fn local_client() -> Self {
         let user_data = match std::fs::read_to_string(".userdata.json") {
             Ok(contents) => serde_json::from_str(&contents).unwrap(),
             Err(_) => UserData::default(),
         };
+        let cookie_store = Self::cookie_store();
 
         Self {
             client: Client::builder()
@@ -87,6 +90,24 @@ impl NetworkClient {
                 .build()
                 .unwrap(),
             base_url: Url::parse("http://localhost:3000").unwrap(),
+            cookie_store,
+            user_data,
+        }
+    }
+
+    pub fn production_client() -> Self {
+        let user_data = match std::fs::read_to_string(".userdata.json") {
+            Ok(contents) => serde_json::from_str(&contents).unwrap(),
+            Err(_) => UserData::default(),
+        };
+        let cookie_store = Self::cookie_store();
+
+        Self {
+            client: Client::builder()
+                .cookie_provider(Arc::clone(&cookie_store))
+                .build()
+                .unwrap(),
+            base_url: Url::parse("https://bom.vincentuden.xyz").unwrap(),
             cookie_store,
             user_data,
         }
@@ -354,10 +375,10 @@ impl NetworkClient {
         bom_id: i64,
     ) -> Result<Vec<PartWithCountAndStock>> {
         let resp = self
-            .build_get(
-                "/api/bom/parts",
-                &[("profileId", profile_id), ("bomId", bom_id)],
-            )
+            .build_get("/api/bom/parts", &[
+                ("profileId", profile_id),
+                ("bomId", bom_id),
+            ])
             .send()
             .await?
             .text()

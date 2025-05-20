@@ -116,9 +116,11 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         // TODO: Error states
-        // TODO: Cli flag for network client
-        let network = Arc::new(Mutex::new(NetworkClient::local_client()));
         let config = CONFIG.read().unwrap();
+        let network = Arc::new(Mutex::new(match config.server_kind {
+            crate::settings::keymap::ServerKind::Production => NetworkClient::production_client(),
+            crate::settings::keymap::ServerKind::Development => NetworkClient::local_client(),
+        }));
 
         Self {
             dark_mode: true,
