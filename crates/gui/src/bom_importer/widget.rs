@@ -6,7 +6,7 @@ use common::{
     models::Part,
     network::NetworkClient,
 };
-use iced::{Alignment, Border, Length, Theme, widget};
+use iced::{Alignment, Border, Length, Padding, Theme, widget};
 use tokio::sync::Mutex;
 use tracing::{debug, error};
 
@@ -231,6 +231,7 @@ impl BomImporter {
                     table_header("Linked").width(60.0).align_x(Alignment::End),
                 ]
                 .spacing(16.0)
+                .padding(Padding::default().right(16.0))
                 .into(),
             ];
 
@@ -242,10 +243,21 @@ impl BomImporter {
                     widget::text(&p.count).width(60.0).align_x(Alignment::End),
                     widget::text(if p.linked_part.is_some() { "Yes" } else { "No" })
                         .width(60.0)
+                        .style(|theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            widget::text::Style {
+                                color: Some(if p.linked_part.is_some() {
+                                    palette.success.base.color
+                                } else {
+                                    palette.danger.base.color
+                                }),
+                            }
+                        })
                         .align_x(Alignment::End),
                 ]
                 .align_y(Alignment::Center)
                 .spacing(16.0)
+                .padding(Padding::default().right(16.0))
                 .into()
             }));
 

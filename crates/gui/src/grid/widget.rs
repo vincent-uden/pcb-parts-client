@@ -1,4 +1,4 @@
-use iced::{Border, Length, Shadow, Theme, alignment, widget};
+use iced::{Border, Length, Padding, Shadow, Theme, alignment, widget};
 
 use crate::settings;
 
@@ -92,7 +92,8 @@ impl GridWidget {
             widget::vertical_space().height(Length::Fill)
         ]
         .align_x(alignment::Horizontal::Center)
-        .width(Length::Fill)
+        .padding(Padding::default().left(32.0).right(32.0))
+        .width(Length::Shrink)
         .height(Length::Fill)
         .into()
     }
