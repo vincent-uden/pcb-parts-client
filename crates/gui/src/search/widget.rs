@@ -4,7 +4,7 @@ use common::{
     network::NetworkClient,
 };
 use iced::{
-    Alignment, Border, Font, Length, Pixels, Theme, alignment, font::Weight,
+    Alignment, Border, Font, Length, Pixels, Theme, alignment, font::Weight, Padding,
     futures::future::join_all, widget,
 };
 use std::fmt::Debug;
@@ -387,8 +387,9 @@ impl BomSearch {
             .into(),
             widget::vertical_space().height(12.0).into(),
             widget::text(format!("{}", bom.description)).into(),
-            widget::horizontal_rule(2.0).into(),
-            widget::vertical_space().height(4.0).into(),
+            widget::vertical_space().height(8.0).into(),
+            widget::horizontal_rule(8.0).into(),
+            widget::vertical_space().height(8.0).into(),
             widget::row![
                 table_header("Name").width(Length::Fill),
                 table_header("Description").width(Length::Fill),
@@ -396,6 +397,7 @@ impl BomSearch {
                 table_header("Stock").width(60.0).align_x(Alignment::End),
             ]
             .spacing(16.0)
+            .padding(Padding::default().right(16.0))
             .into(),
         ];
 
@@ -409,6 +411,7 @@ impl BomSearch {
             ]
             .align_y(Alignment::Center)
             .spacing(16.0)
+            .padding(Padding::default().right(16.0))
             .into()
         }));
 
