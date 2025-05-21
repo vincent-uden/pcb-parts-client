@@ -48,14 +48,17 @@ impl BomImporter {
             Msg::OpenFile => {
                 match csv_to_headers(&PathBuf::from_str(&self.path).unwrap_or_default()) {
                     Ok(headers) => iced::Task::done(Msg::OpenSuccess(headers)),
-                    Err(_) => iced::Task::done(Msg::OpenFailed),
+                    Err(e) => iced::Task::done(Msg::OpenFailed(e.to_string())),
                 }
             }
             Msg::OpenSuccess(column_names) => {
                 self.column_names = column_names;
                 iced::Task::none()
             }
-            Msg::OpenFailed => todo!(),
+            Msg::OpenFailed(e) => {
+                error!("Failed to open file {}", e);
+                iced::Task::none()
+            }
             Msg::BomName(s) => {
                 self.bom_name = s;
                 iced::Task::none()
@@ -300,11 +303,14 @@ impl BomImporter {
         for p in pending.candidates {
             match p.linked_part {
                 Some(linked) => parts.push((p.count, linked)),
-                None => parts.push((p.count, Part {
-                    id: 0,
-                    name: p.name,
-                    description: p.description,
-                })),
+                None => parts.push((
+                    p.count,
+                    Part {
+                        id: 0,
+                        name: p.name,
+                        description: p.description,
+                    },
+                )),
             }
         }
 

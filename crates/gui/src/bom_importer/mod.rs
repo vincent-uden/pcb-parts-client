@@ -24,7 +24,7 @@ pub enum Msg {
     PendingPath(String),
     OpenFile,
     OpenSuccess(Vec<String>),
-    OpenFailed,
+    OpenFailed(String),
     BomName(String),
     BomDescription(String),
     SelectNameColumn(String),
