@@ -60,6 +60,7 @@ pub enum AppMessage {
     FocusNext,
     FocusPrevious,
     Back,
+    GridCellSelected(i64, i64), // row, column
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -149,9 +150,7 @@ impl App {
                 OpenModal::None => iced::exit(),
                 _ => iced::Task::none(),
             },
-            AppMessage::SearchMessage(SearchMessage::ChangeStock(part)) => {
-                iced::Task::done(AppMessage::Modal(OpenModal::ChangeStock(part)))
-            }
+
             AppMessage::SearchMessage(ref msg @ SearchMessage::HoverPart(ref part)) => {
                 let part_with_count = PartWithCountAndStock {
                     id: part.id,
@@ -185,6 +184,30 @@ impl App {
                 .update(msg.clone())
                 .map(AppMessage::SearchMessage)
                 .chain(iced::Task::done(AppMessage::HighlightParts(vec![]))),
+            AppMessage::SearchMessage(SearchMessage::EnableGridSelection(enabled)) => {
+                self.search
+                    .update(SearchMessage::EnableGridSelection(enabled))
+                    .map(AppMessage::SearchMessage)
+                    .chain(iced::Task::done(AppMessage::GridMessage(GridMessage::SetSelectionMode(enabled))))
+            }
+            AppMessage::SearchMessage(SearchMessage::UpdateTargetBinHighlight) => {
+                // Get the current bin coordinates from the search panel
+                let coords = if let Some(_) = &self.search.part_searcher.selected_part {
+                    let row = self.search.part_searcher.stock_row.parse::<i64>().ok();
+                    let column = self.search.part_searcher.stock_column.parse::<i64>().ok();
+                    match (row, column) {
+                        (Some(r), Some(c)) => Some((r, c)),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                
+                self.search
+                    .update(SearchMessage::UpdateTargetBinHighlight)
+                    .map(AppMessage::SearchMessage)
+                    .chain(iced::Task::done(AppMessage::GridMessage(GridMessage::HighlightTargetBin(coords))))
+            }
             AppMessage::SearchMessage(search_message) => self
                 .search
                 .update(search_message)
@@ -273,7 +296,14 @@ impl App {
                 iced::Task::done(AppMessage::SearchMessage(SearchMessage::SubmitQuery))
             }
             AppMessage::StockModalFail => iced::Task::none(),
-            AppMessage::GridMessage(_) => todo!(),
+            AppMessage::GridMessage(grid_msg) => {
+                match grid_msg {
+                    GridMessage::CellClicked(row, column) => {
+                        iced::Task::done(AppMessage::GridCellSelected(row, column))
+                    }
+                    _ => self.grid.update(grid_msg).map(AppMessage::GridMessage),
+                }
+            }
             AppMessage::LoginModalEmail(s) => {
                 self.login_modal_data.email = s;
                 iced::Task::none()
@@ -366,6 +396,9 @@ impl App {
                 OpenModal::None => iced::Task::none(),
                 _ => iced::Task::done(AppMessage::Modal(OpenModal::None)),
             },
+            AppMessage::GridCellSelected(row, column) => {
+                iced::Task::done(AppMessage::SearchMessage(SearchMessage::GridCellSelected(row, column)))
+            }
         }
     }
 
