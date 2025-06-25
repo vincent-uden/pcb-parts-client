@@ -34,6 +34,11 @@ pub struct Search {
 pub struct PartSearch {
     pub matching: Vec<PartWithStock>,
     pub hovered_part: Option<i64>,
+    pub selected_part: Option<PartWithStock>,
+    pub stock_quantity: String,
+    pub stock_row: String,
+    pub stock_column: String,
+    pub stock_z: String,
 }
 
 #[derive(Debug)]
@@ -171,13 +176,145 @@ impl Search {
             }
             SearchMessage::StockChangeFailed => iced::Task::none(),
             SearchMessage::StockChangeSuccess(_) => {
-                let bom = self.bom_searcher.expanded.as_ref().unwrap().clone();
-                iced::Task::done(SearchMessage::RefreshBom(bom))
+                if let Some(bom) = &self.bom_searcher.expanded {
+                    let bom = bom.clone();
+                    iced::Task::done(SearchMessage::RefreshBom(bom))
+                } else if self.part_searcher.selected_part.is_some() {
+                    // Clear the selected part and refresh the parts search
+                    self.part_searcher.selected_part = None;
+                    self.part_searcher.stock_quantity.clear();
+                    self.part_searcher.stock_row.clear();
+                    self.part_searcher.stock_column.clear();
+                    self.part_searcher.stock_z.clear();
+                    iced::Task::done(SearchMessage::SubmitQuery)
+                        .chain(iced::Task::done(SearchMessage::EnableGridSelection(false)))
+                } else {
+                    iced::Task::none()
+                }
             }
             SearchMessage::CloseBom => {
                 self.bom_searcher.expanded = None;
                 self.bom_searcher.parts.clear();
                 self.bom_searcher.stock_quantity.clear();
+                iced::Task::none()
+            }
+            SearchMessage::SelectPart(part) => {
+                self.part_searcher.selected_part = Some(part.clone());
+                self.part_searcher.stock_row = part.row.to_string();
+                self.part_searcher.stock_column = part.column.to_string();
+                self.part_searcher.stock_z = part.z.to_string();
+                self.part_searcher.stock_quantity.clear();
+                iced::Task::done(SearchMessage::EnableGridSelection(true))
+            }
+            SearchMessage::CancelPartStock => {
+                self.part_searcher.selected_part = None;
+                self.part_searcher.stock_quantity.clear();
+                self.part_searcher.stock_row.clear();
+                self.part_searcher.stock_column.clear();
+                self.part_searcher.stock_z.clear();
+                iced::Task::done(SearchMessage::EnableGridSelection(false))
+            }
+            SearchMessage::PartStockQuantity(s) => {
+                self.part_searcher.stock_quantity = s;
+                iced::Task::none()
+            }
+            SearchMessage::PartStockRow(s) => {
+                self.part_searcher.stock_row = s;
+                iced::Task::none()
+            }
+            SearchMessage::PartStockColumn(s) => {
+                self.part_searcher.stock_column = s;
+                iced::Task::none()
+            }
+            SearchMessage::PartStockZ(s) => {
+                self.part_searcher.stock_z = s;
+                iced::Task::none()
+            }
+            SearchMessage::RestockPart => {
+                if let Some(part) = &self.part_searcher.selected_part {
+                    let diff: i64 = match self.part_searcher.stock_quantity.parse() {
+                        Ok(x) => x,
+                        Err(_) => return iced::Task::none(),
+                    };
+                    let row: i64 = match self.part_searcher.stock_row.parse() {
+                        Ok(x) => x,
+                        Err(_) => return iced::Task::none(),
+                    };
+                    let column: i64 = match self.part_searcher.stock_column.parse() {
+                        Ok(x) => x,
+                        Err(_) => return iced::Task::none(),
+                    };
+                    let z: i64 = match self.part_searcher.stock_z.parse() {
+                        Ok(x) => x,
+                        Err(_) => return iced::Task::none(),
+                    };
+
+                    iced::Task::perform(
+                        PartSearch::change_part_stock(
+                            self.network.clone(),
+                            part.id,
+                            part.stock,
+                            diff,
+                            row,
+                            column,
+                            z,
+                        ),
+                        move |output| match output {
+                            Ok(_) => SearchMessage::StockChangeSuccess(diff),
+                            Err(_) => SearchMessage::StockChangeFailed,
+                        },
+                    )
+                } else {
+                    iced::Task::none()
+                }
+            }
+            SearchMessage::DepletePart => {
+                if let Some(part) = &self.part_searcher.selected_part {
+                    let diff: i64 = match self.part_searcher.stock_quantity.parse() {
+                        Ok(x) => x,
+                        Err(_) => return iced::Task::none(),
+                    };
+                    let row: i64 = match self.part_searcher.stock_row.parse() {
+                        Ok(x) => x,
+                        Err(_) => return iced::Task::none(),
+                    };
+                    let column: i64 = match self.part_searcher.stock_column.parse() {
+                        Ok(x) => x,
+                        Err(_) => return iced::Task::none(),
+                    };
+                    let z: i64 = match self.part_searcher.stock_z.parse() {
+                        Ok(x) => x,
+                        Err(_) => return iced::Task::none(),
+                    };
+
+                    iced::Task::perform(
+                        PartSearch::change_part_stock(
+                            self.network.clone(),
+                            part.id,
+                            part.stock,
+                            -diff,
+                            row,
+                            column,
+                            z,
+                        ),
+                        move |output| match output {
+                            Ok(_) => SearchMessage::StockChangeSuccess(diff),
+                            Err(_) => SearchMessage::StockChangeFailed,
+                        },
+                    )
+                } else {
+                    iced::Task::none()
+                }
+            }
+            SearchMessage::GridCellSelected(row, column) => {
+                if self.part_searcher.selected_part.is_some() {
+                    self.part_searcher.stock_row = row.to_string();
+                    self.part_searcher.stock_column = column.to_string();
+                }
+                iced::Task::none()
+            }
+            SearchMessage::EnableGridSelection(_) => {
+                // This message is handled by the app to enable/disable grid selection mode
                 iced::Task::none()
             }
         }
@@ -264,6 +401,11 @@ impl PartSearch {
         Self {
             matching: vec![],
             hovered_part: None,
+            selected_part: None,
+            stock_quantity: String::new(),
+            stock_row: String::new(),
+            stock_column: String::new(),
+            stock_z: String::new(),
         }
     }
     async fn query(
@@ -277,55 +419,159 @@ impl PartSearch {
         Ok(out)
     }
 
+    async fn change_part_stock(
+        network: Arc<Mutex<NetworkClient>>,
+        part_id: i64,
+        current_stock: i64,
+        diff: i64,
+        row: i64,
+        column: i64,
+        z: i64,
+    ) -> Result<()> {
+        let mut network = network.lock().await;
+        let profile_id = match &network.user_data.profile {
+            Some(p) => p.id,
+            None => return Err(anyhow!("No profile selected")),
+        };
+        let new_stock = current_stock + diff;
+        network
+            .stock_part(profile_id, part_id, new_stock, column, row, z)
+            .await?;
+        Ok(())
+    }
+
     fn view(&self) -> iced::Element<'_, SearchMessage> {
-        let mut rows = vec![
-            widget::row![
-                table_header("Name").width(Length::Fill),
-                table_header("Description").width(Length::Fill),
-                table_header("Stock").width(60.0).align_x(Alignment::End),
-                table_header("").width(140.0),
+        if let Some(selected_part) = &self.selected_part {
+            widget::column![
+                widget::row![
+                    widget::column![
+                        widget::text(&selected_part.name).size(18.0).font(Font {
+                            weight: Weight::Bold,
+                            ..Default::default()
+                        }),
+                        widget::text(&selected_part.description).size(14.0),
+                        widget::text(format!("Current stock: {}", selected_part.stock)).size(12.0),
+                    ]
+                    .width(Length::Fill),
+                    widget::button("Cancel").on_press(SearchMessage::CancelPartStock),
+                ]
+                .spacing(16.0)
+                .align_y(Alignment::Center),
+                widget::horizontal_rule(2.0),
+                widget::column![
+                    widget::text("Quantity:"),
+                    widget::text_input("Enter amount", &self.stock_quantity)
+                        .on_input(SearchMessage::PartStockQuantity),
+                    widget::text("Bin Location:"),
+                    widget::text(
+                        "Click on the grid to select a bin location, or enter coordinates manually:"
+                    )
+                    .size(12.0)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        widget::text::Style {
+                            color: palette.background.weak.text.into(),
+                        }
+                    }),
+                    widget::row![
+                        widget::column![
+                            widget::text("Row:"),
+                            widget::text_input("", &self.stock_row)
+                                .on_input(SearchMessage::PartStockRow)
+                                .width(80.0),
+                        ],
+                        widget::column![
+                            widget::text("Column:"),
+                            widget::text_input("", &self.stock_column)
+                                .on_input(SearchMessage::PartStockColumn)
+                                .width(80.0),
+                        ],
+                        widget::column![
+                            widget::text("Z:"),
+                            widget::text_input("", &self.stock_z)
+                                .on_input(SearchMessage::PartStockZ)
+                                .width(80.0),
+                        ],
+                    ]
+                    .spacing(16.0),
+                    widget::row![
+                        widget::button("Restock")
+                            .style(|theme: &Theme, _status| {
+                                let palette = theme.extended_palette();
+                                widget::button::Style {
+                                    background: Some(palette.success.base.color.into()),
+                                    text_color: palette.success.base.text,
+                                    ..widget::button::primary(theme, _status)
+                                }
+                            })
+                            .on_press(SearchMessage::RestockPart),
+                        widget::button("Deplete")
+                            .style(|theme: &Theme, _status| {
+                                let palette = theme.extended_palette();
+                                widget::button::Style {
+                                    background: Some(palette.danger.base.color.into()),
+                                    text_color: palette.danger.base.text,
+                                    ..widget::button::primary(theme, _status)
+                                }
+                            })
+                            .on_press(SearchMessage::DepletePart),
+                    ]
+                    .spacing(16.0),
+                ]
+                .spacing(8.0),
             ]
             .spacing(16.0)
-            .into(),
-        ];
-        rows.extend(self.matching.iter().map(|p| {
-            let is_hovered = self.hovered_part == Some(p.id);
-            widget::mouse_area(
-                widget::container(
-                    widget::row![
-                        widget::text(&p.name).width(Length::Fill),
-                        widget::text(&p.description).width(Length::Fill),
-                        widget::text(&p.stock).width(60.0).align_x(Alignment::End),
-                        widget::button("Change stock")
-                            .width(140.0)
-                            .on_press(SearchMessage::ChangeStock(p.clone())),
-                    ]
-                    .spacing(16.0)
-                    .align_y(Alignment::Center),
-                )
-                .padding(4.0)
-                .style(move |theme: &Theme| {
-                    let palette = theme.extended_palette();
-                    if is_hovered {
-                        widget::container::Style {
-                            background: Some(palette.background.strong.color.into()),
-                            border: Border {
-                                color: palette.background.base.text,
-                                width: 1.0,
-                                radius: iced::border::Radius::from(4.0),
-                            },
-                            ..Default::default()
-                        }
-                    } else {
-                        widget::container::Style::default()
-                    }
-                }),
-            )
-            .on_enter(SearchMessage::HoverPart(p.clone()))
-            .on_exit(SearchMessage::ClearHover)
             .into()
-        }));
-        widget::scrollable(widget::column(rows).spacing(8.0)).into()
+        } else {
+            let mut rows = vec![
+                widget::row![
+                    table_header("Name").width(Length::Fill),
+                    table_header("Description").width(Length::Fill),
+                    table_header("Stock").width(60.0).align_x(Alignment::End),
+                    table_header("").width(140.0),
+                ]
+                .spacing(16.0)
+                .into(),
+            ];
+            rows.extend(self.matching.iter().map(|p| {
+                let is_hovered = self.hovered_part == Some(p.id);
+                widget::mouse_area(
+                    widget::container(
+                        widget::row![
+                            widget::text(&p.name).width(Length::Fill),
+                            widget::text(&p.description).width(Length::Fill),
+                            widget::text(&p.stock).width(60.0).align_x(Alignment::End),
+                            widget::button("Change stock")
+                                .width(140.0)
+                                .on_press(SearchMessage::SelectPart(p.clone())),
+                        ]
+                        .spacing(16.0)
+                        .align_y(Alignment::Center),
+                    )
+                    .padding(4.0)
+                    .style(move |theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        if is_hovered {
+                            widget::container::Style {
+                                background: Some(palette.background.strong.color.into()),
+                                border: Border {
+                                    color: palette.background.base.text,
+                                    width: 1.0,
+                                    radius: iced::border::Radius::from(4.0),
+                                },
+                                ..Default::default()
+                            }
+                        } else {
+                            widget::container::Style::default()
+                        }
+                    }),
+                )
+                .on_enter(SearchMessage::HoverPart(p.clone()))
+                .on_exit(SearchMessage::ClearHover)
+                .into()
+            }));
+            widget::scrollable(widget::column(rows).spacing(8.0)).into()
+        }
     }
 }
 

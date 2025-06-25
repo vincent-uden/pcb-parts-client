@@ -11,6 +11,8 @@ pub struct GridWidget {
     dimensions: settings::Grid,
     highlighted: Vec<(i64, i64)>,
     z: i64,
+    selection_mode: bool,
+    selected_cell: Option<(i64, i64)>,
 }
 
 impl GridWidget {
@@ -19,6 +21,8 @@ impl GridWidget {
             dimensions,
             highlighted: vec![],
             z: 0,
+            selection_mode: false,
+            selected_cell: None,
         }
     }
 
@@ -30,6 +34,19 @@ impl GridWidget {
             }
             GridMessage::LayerUp => todo!(),
             GridMessage::LayerDown => todo!(),
+            GridMessage::CellClicked(row, column) => {
+                if self.selection_mode {
+                    self.selected_cell = Some((row, column));
+                }
+                iced::Task::none()
+            }
+            GridMessage::SetSelectionMode(enabled) => {
+                self.selection_mode = enabled;
+                if !enabled {
+                    self.selected_cell = None;
+                }
+                iced::Task::none()
+            }
         }
     }
 
@@ -41,35 +58,57 @@ impl GridWidget {
         for r in 0..self.dimensions.rows {
             let mut row: widget::Row<'_, GridMessage> = widget::row![].spacing(8.0);
             for c in 0..self.dimensions.columns {
-                row = row.push(
-                    widget::container("")
-                        .width(CELL_SIZE)
-                        .height(CELL_SIZE)
-                        .style(if self.highlighted.contains(&(r, c)) {
-                            |theme: &Theme| {
-                                let palette = theme.extended_palette();
-                                widget::container::Style {
-                                    border: Border::default().rounded(4.0),
-                                    background: Some(palette.primary.base.color.into()),
-                                    shadow: Shadow {
-                                        color: palette.primary.base.color,
-                                        offset: iced::Vector { x: 0.0, y: 0.0 },
-                                        blur_radius: 8.0,
-                                    },
-                                    ..Default::default()
-                                }
+                let is_highlighted = self.highlighted.contains(&(r, c));
+                let is_selected = self.selected_cell == Some((r, c));
+                
+                let cell = widget::container("")
+                    .width(CELL_SIZE)
+                    .height(CELL_SIZE)
+                    .style(move |theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        if is_selected {
+                            // Selected cell - green background
+                            widget::container::Style {
+                                border: Border::default().rounded(4.0),
+                                background: Some(palette.success.base.color.into()),
+                                shadow: Shadow {
+                                    color: palette.success.base.color,
+                                    offset: iced::Vector { x: 0.0, y: 0.0 },
+                                    blur_radius: 8.0,
+                                },
+                                ..Default::default()
+                            }
+                        } else if is_highlighted {
+                            // Highlighted cell - primary color
+                            widget::container::Style {
+                                border: Border::default().rounded(4.0),
+                                background: Some(palette.primary.base.color.into()),
+                                shadow: Shadow {
+                                    color: palette.primary.base.color,
+                                    offset: iced::Vector { x: 0.0, y: 0.0 },
+                                    blur_radius: 8.0,
+                                },
+                                ..Default::default()
                             }
                         } else {
-                            |theme: &Theme| {
-                                let palette = theme.extended_palette();
-                                widget::container::Style {
-                                    border: Border::default().rounded(4.0),
-                                    background: Some(palette.background.base.color.into()),
-                                    ..Default::default()
-                                }
+                            // Normal cell
+                            widget::container::Style {
+                                border: Border::default().rounded(4.0),
+                                background: Some(palette.background.base.color.into()),
+                                ..Default::default()
                             }
-                        }),
-                );
+                        }
+                    });
+
+                if self.selection_mode {
+                    // Make cell clickable in selection mode
+                    row = row.push(
+                        widget::mouse_area(cell)
+                            .on_press(GridMessage::CellClicked(r, c))
+                    );
+                } else {
+                    row = row.push(cell);
+                }
             }
             grid = grid.push(row);
         }

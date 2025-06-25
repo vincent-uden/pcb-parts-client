@@ -22,4 +22,15 @@ pub enum SearchMessage {
     RefreshBom(Bom),
     StockChangeFailed,
     StockChangeSuccess(i64),
+    // New messages for part stock operations
+    SelectPart(PartWithStock),
+    CancelPartStock,
+    PartStockQuantity(String),
+    PartStockRow(String),
+    PartStockColumn(String),
+    PartStockZ(String),
+    RestockPart,
+    DepletePart,
+    GridCellSelected(i64, i64), // row, column
+    EnableGridSelection(bool),
 }
