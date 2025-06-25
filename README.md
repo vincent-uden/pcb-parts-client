@@ -2,7 +2,10 @@
 
 A comprehensive parts inventory management system. This application helps you organize, track, and manage electronic components, BOMs (Bill of Materials), and stock levels with both a GUI and CLI interface.
 
+![An image of the parts manager](/assets/screenshot.png)
+
 The system is built to work with a gridfinity-based arrangement of bins to store the parts.
+
 
 ## Features
 
