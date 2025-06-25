@@ -2,6 +2,9 @@
 
 ## Build/Test Commands
 - `cargo build` - Build all workspace crates
+- `cargo check` - Check for compilation errors in all workspace crates
+- `cargo check --bin gui` - Check for compilation errors in the gui crate
+- `cargo check --bin cli` - Check for compilation errors in the cli crate
 - `cargo run --bin gui` - Run GUI application  
 - `cargo run --bin cli` - Run CLI application
 - `cargo test` - Run all tests
@@ -9,6 +12,8 @@
 - `cargo test can_parse_altium_bom` - Run single test by name
 - `cargo clippy` - Run linter
 - `cargo fmt` - Format code
+
+Always run the `cargo check` commands first when looking for compilation errors as they are much faster than `cargo build` or `cargo run`.
 
 ## Code Style Guidelines
 - **Imports**: Group std, external crates, then local modules with blank lines between

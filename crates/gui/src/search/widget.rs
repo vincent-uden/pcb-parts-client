@@ -4,7 +4,7 @@ use common::{
     network::NetworkClient,
 };
 use iced::{
-    Alignment, Border, Font, Length, Pixels, Theme, alignment, font::Weight, Padding,
+    Alignment, Border, Font, Length, Padding, Pixels, Theme, alignment, font::Weight,
     futures::future::join_all, widget,
 };
 use std::fmt::Debug;
@@ -33,6 +33,7 @@ pub struct Search {
 #[derive(Debug)]
 pub struct PartSearch {
     pub matching: Vec<PartWithStock>,
+    pub hovered_part: Option<i64>,
 }
 
 #[derive(Debug)]
@@ -78,6 +79,7 @@ impl Search {
             },
             SearchMessage::PartSearchResult(vec) => {
                 self.part_searcher.matching = vec;
+                self.part_searcher.hovered_part = None;
                 iced::Task::none()
             }
             SearchMessage::BomSearchResult(vec) => {
@@ -90,6 +92,14 @@ impl Search {
             }
             SearchMessage::ChangeStock(_) => {
                 error!("ChangeStock should be consumed by parent");
+                iced::Task::none()
+            }
+            SearchMessage::HoverPart(part) => {
+                self.part_searcher.hovered_part = Some(part.id);
+                iced::Task::none()
+            }
+            SearchMessage::ClearHover => {
+                self.part_searcher.hovered_part = None;
                 iced::Task::none()
             }
             SearchMessage::OpenBom(bom) => {
@@ -251,7 +261,10 @@ impl Search {
 
 impl PartSearch {
     pub fn new() -> Self {
-        Self { matching: vec![] }
+        Self {
+            matching: vec![],
+            hovered_part: None,
+        }
     }
     async fn query(
         network: Arc<Mutex<NetworkClient>>,
@@ -276,16 +289,40 @@ impl PartSearch {
             .into(),
         ];
         rows.extend(self.matching.iter().map(|p| {
-            widget::row![
-                widget::text(&p.name).width(Length::Fill),
-                widget::text(&p.description).width(Length::Fill),
-                widget::text(&p.stock).width(60.0).align_x(Alignment::End),
-                widget::button("Change stock")
-                    .width(140.0)
-                    .on_press(SearchMessage::ChangeStock(p.clone())),
-            ]
-            .spacing(16.0)
-            .align_y(Alignment::Center)
+            let is_hovered = self.hovered_part == Some(p.id);
+            widget::mouse_area(
+                widget::container(
+                    widget::row![
+                        widget::text(&p.name).width(Length::Fill),
+                        widget::text(&p.description).width(Length::Fill),
+                        widget::text(&p.stock).width(60.0).align_x(Alignment::End),
+                        widget::button("Change stock")
+                            .width(140.0)
+                            .on_press(SearchMessage::ChangeStock(p.clone())),
+                    ]
+                    .spacing(16.0)
+                    .align_y(Alignment::Center),
+                )
+                .padding(4.0)
+                .style(move |theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    if is_hovered {
+                        widget::container::Style {
+                            background: Some(palette.background.strong.color.into()),
+                            border: Border {
+                                color: palette.background.base.text,
+                                width: 1.0,
+                                radius: iced::border::Radius::from(4.0),
+                            },
+                            ..Default::default()
+                        }
+                    } else {
+                        widget::container::Style::default()
+                    }
+                }),
+            )
+            .on_enter(SearchMessage::HoverPart(p.clone()))
+            .on_exit(SearchMessage::ClearHover)
             .into()
         }));
         widget::scrollable(widget::column(rows).spacing(8.0)).into()

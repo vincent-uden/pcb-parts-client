@@ -152,6 +152,28 @@ impl App {
             AppMessage::SearchMessage(SearchMessage::ChangeStock(part)) => {
                 iced::Task::done(AppMessage::Modal(OpenModal::ChangeStock(part)))
             }
+            AppMessage::SearchMessage(ref msg @ SearchMessage::HoverPart(ref part)) => {
+                let part_with_count = PartWithCountAndStock {
+                    id: part.id,
+                    name: part.name.clone(),
+                    description: part.description.clone(),
+                    count: 1,
+                    stock: part.stock,
+                    column: part.column,
+                    row: part.row,
+                    z: part.z,
+                };
+                self.search
+                    .update(msg.clone())
+                    .map(AppMessage::SearchMessage)
+                    .chain(iced::Task::done(AppMessage::HighlightParts(vec![part_with_count])))
+            }
+            AppMessage::SearchMessage(ref msg @ SearchMessage::ClearHover) => {
+                self.search
+                    .update(msg.clone())
+                    .map(AppMessage::SearchMessage)
+                    .chain(iced::Task::done(AppMessage::HighlightParts(vec![])))
+            }
             AppMessage::SearchMessage(ref msg @ SearchMessage::BomPartsSearchResult(ref part)) => {
                 self.search
                     .update(msg.clone())

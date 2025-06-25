@@ -12,6 +12,8 @@ pub enum SearchMessage {
     BomPartsSearchResult(Vec<PartWithCountAndStock>),
     FailedSearch(String),
     ChangeStock(PartWithStock),
+    HoverPart(PartWithStock),
+    ClearHover,
     DepleteBom(Bom),
     RestockBom(Bom),
     StockQuantity(String),
