@@ -13,6 +13,7 @@ pub struct GridWidget {
     z: i64,
     selection_mode: bool,
     selected_cell: Option<(i64, i64)>,
+    target_bin: Option<(i64, i64)>,
 }
 
 impl GridWidget {
@@ -23,6 +24,7 @@ impl GridWidget {
             z: 0,
             selection_mode: false,
             selected_cell: None,
+            target_bin: None,
         }
     }
 
@@ -44,7 +46,12 @@ impl GridWidget {
                 self.selection_mode = enabled;
                 if !enabled {
                     self.selected_cell = None;
+                    self.target_bin = None;
                 }
+                iced::Task::none()
+            }
+            GridMessage::HighlightTargetBin(coords) => {
+                self.target_bin = coords;
                 iced::Task::none()
             }
         }
@@ -60,14 +67,27 @@ impl GridWidget {
             for c in 0..self.dimensions.columns {
                 let is_highlighted = self.highlighted.contains(&(r, c));
                 let is_selected = self.selected_cell == Some((r, c));
+                let is_target_bin = self.target_bin == Some((r, c));
                 
                 let cell = widget::container("")
                     .width(CELL_SIZE)
                     .height(CELL_SIZE)
                     .style(move |theme: &Theme| {
                         let palette = theme.extended_palette();
-                        if is_selected {
-                            // Selected cell - green background
+                        if is_target_bin {
+                            // Target bin - orange/amber background for restock/deplete location
+                            widget::container::Style {
+                                border: Border::default().rounded(4.0),
+                                background: Some(iced::Color::from_rgb(1.0, 0.6, 0.0).into()), // Orange
+                                shadow: Shadow {
+                                    color: iced::Color::from_rgb(1.0, 0.6, 0.0),
+                                    offset: iced::Vector { x: 0.0, y: 0.0 },
+                                    blur_radius: 8.0,
+                                },
+                                ..Default::default()
+                            }
+                        } else if is_selected {
+                            // Selected cell - green background (for grid selection mode)
                             widget::container::Style {
                                 border: Border::default().rounded(4.0),
                                 background: Some(palette.success.base.color.into()),
@@ -79,7 +99,7 @@ impl GridWidget {
                                 ..Default::default()
                             }
                         } else if is_highlighted {
-                            // Highlighted cell - primary color
+                            // Highlighted cell - primary color (for existing parts)
                             widget::container::Style {
                                 border: Border::default().rounded(4.0),
                                 background: Some(palette.primary.base.color.into()),

@@ -190,6 +190,24 @@ impl App {
                     .map(AppMessage::SearchMessage)
                     .chain(iced::Task::done(AppMessage::GridMessage(GridMessage::SetSelectionMode(enabled))))
             }
+            AppMessage::SearchMessage(SearchMessage::UpdateTargetBinHighlight) => {
+                // Get the current bin coordinates from the search panel
+                let coords = if let Some(_) = &self.search.part_searcher.selected_part {
+                    let row = self.search.part_searcher.stock_row.parse::<i64>().ok();
+                    let column = self.search.part_searcher.stock_column.parse::<i64>().ok();
+                    match (row, column) {
+                        (Some(r), Some(c)) => Some((r, c)),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                
+                self.search
+                    .update(SearchMessage::UpdateTargetBinHighlight)
+                    .map(AppMessage::SearchMessage)
+                    .chain(iced::Task::done(AppMessage::GridMessage(GridMessage::HighlightTargetBin(coords))))
+            }
             AppMessage::SearchMessage(search_message) => self
                 .search
                 .update(search_message)

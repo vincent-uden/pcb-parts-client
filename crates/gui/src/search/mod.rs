@@ -33,4 +33,5 @@ pub enum SearchMessage {
     DepletePart,
     GridCellSelected(i64, i64), // row, column
     EnableGridSelection(bool),
+    UpdateTargetBinHighlight,
 }

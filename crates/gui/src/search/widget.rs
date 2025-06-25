@@ -24,7 +24,7 @@ enum SearchMode {
 #[derive(Debug)]
 pub struct Search {
     mode: SearchMode,
-    part_searcher: PartSearch,
+    pub part_searcher: PartSearch,
     bom_searcher: BomSearch,
     query: String,
     network: Arc<Mutex<NetworkClient>>,
@@ -205,6 +205,7 @@ impl Search {
                 self.part_searcher.stock_z = part.z.to_string();
                 self.part_searcher.stock_quantity.clear();
                 iced::Task::done(SearchMessage::EnableGridSelection(true))
+                    .chain(iced::Task::done(SearchMessage::UpdateTargetBinHighlight))
             }
             SearchMessage::CancelPartStock => {
                 self.part_searcher.selected_part = None;
@@ -213,6 +214,7 @@ impl Search {
                 self.part_searcher.stock_column.clear();
                 self.part_searcher.stock_z.clear();
                 iced::Task::done(SearchMessage::EnableGridSelection(false))
+                    .chain(iced::Task::done(SearchMessage::UpdateTargetBinHighlight))
             }
             SearchMessage::PartStockQuantity(s) => {
                 self.part_searcher.stock_quantity = s;
@@ -220,15 +222,15 @@ impl Search {
             }
             SearchMessage::PartStockRow(s) => {
                 self.part_searcher.stock_row = s;
-                iced::Task::none()
+                iced::Task::done(SearchMessage::UpdateTargetBinHighlight)
             }
             SearchMessage::PartStockColumn(s) => {
                 self.part_searcher.stock_column = s;
-                iced::Task::none()
+                iced::Task::done(SearchMessage::UpdateTargetBinHighlight)
             }
             SearchMessage::PartStockZ(s) => {
                 self.part_searcher.stock_z = s;
-                iced::Task::none()
+                iced::Task::done(SearchMessage::UpdateTargetBinHighlight)
             }
             SearchMessage::RestockPart => {
                 if let Some(part) = &self.part_searcher.selected_part {
@@ -310,11 +312,17 @@ impl Search {
                 if self.part_searcher.selected_part.is_some() {
                     self.part_searcher.stock_row = row.to_string();
                     self.part_searcher.stock_column = column.to_string();
+                    iced::Task::done(SearchMessage::UpdateTargetBinHighlight)
+                } else {
+                    iced::Task::none()
                 }
-                iced::Task::none()
             }
             SearchMessage::EnableGridSelection(_) => {
                 // This message is handled by the app to enable/disable grid selection mode
+                iced::Task::none()
+            }
+            SearchMessage::UpdateTargetBinHighlight => {
+                // This message is handled by the app to update grid target bin highlighting
                 iced::Task::none()
             }
         }
