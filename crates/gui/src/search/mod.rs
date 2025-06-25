@@ -22,7 +22,6 @@ pub enum SearchMessage {
     RefreshBom(Bom),
     StockChangeFailed,
     StockChangeSuccess(i64),
-    // New messages for part stock operations
     SelectPart(PartWithStock),
     CancelPartStock,
     PartStockQuantity(String),
