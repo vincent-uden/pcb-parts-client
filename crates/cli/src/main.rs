@@ -92,7 +92,7 @@ enum Commands {
 async fn main() -> Result<()> {
     let args = Cli::parse();
 
-    let mut network = NetworkClient::local_client();
+    let mut network = NetworkClient::production_client();
 
     match args.command {
         Commands::CreateUser { email, password } => {

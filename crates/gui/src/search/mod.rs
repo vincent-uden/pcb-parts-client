@@ -33,4 +33,5 @@ pub enum SearchMessage {
     GridCellSelected(i64, i64), // row, column
     EnableGridSelection(bool),
     UpdateTargetBinHighlight,
+    CopyToClipboard(String),
 }

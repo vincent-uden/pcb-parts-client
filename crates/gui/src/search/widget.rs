@@ -4,7 +4,7 @@ use common::{
     network::NetworkClient,
 };
 use iced::{
-    Alignment, Border, Font, Length, Padding, Pixels, Theme, alignment, font::Weight,
+    Alignment, Border, Font, Length, Padding, Pixels, Theme, alignment, clipboard, font::Weight,
     futures::future::join_all, widget,
 };
 use std::fmt::Debug;
@@ -325,6 +325,7 @@ impl Search {
                 // This message is handled by the app to update grid target bin highlighting
                 iced::Task::none()
             }
+            SearchMessage::CopyToClipboard(to_copy) => iced::clipboard::write(to_copy),
         }
     }
 
@@ -695,7 +696,17 @@ impl BomSearch {
         let mut parts = widget::column(vec![]);
         parts = parts.extend(self.parts.iter().map(|p| {
             widget::row![
-                widget::text(&p.name).width(Length::Fill),
+                widget::button(widget::text(&p.name))
+                    .width(Length::Fill)
+                    .on_press(SearchMessage::CopyToClipboard(p.name.clone()))
+                    .style(|theme: &Theme, status| {
+                        let palette = theme.extended_palette();
+                        widget::button::Style {
+                            background: None,
+                            text_color: palette.background.base.text,
+                            ..Default::default()
+                        }
+                    }),
                 widget::text(&p.description).width(Length::Fill),
                 widget::text(&p.count).width(60.0).align_x(Alignment::End),
                 widget::text(&p.stock).width(60.0).align_x(Alignment::End),
