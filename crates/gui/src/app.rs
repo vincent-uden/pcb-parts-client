@@ -19,6 +19,7 @@ use crate::{
     bom_importer::{self, widget::BomImporter},
     grid::{GridMessage, widget::GridWidget},
     icons,
+    purchase_planner::{self, widget::PurchasePlanner},
     search::{SearchMessage, widget::Search},
     settings::Grid,
 };
@@ -29,6 +30,7 @@ pub enum AppMessage {
     HighlightParts(Vec<PartWithCountAndStock>),
     SearchMessage(SearchMessage),
     BomImportMessage(bom_importer::Msg),
+    PurchasePlannerMessage(purchase_planner::Msg),
     GridMessage(GridMessage),
     Modal(OpenModal),
     Tab(AppTab),
@@ -69,6 +71,7 @@ pub enum AppTab {
     Search,
     Settings,
     BomImport,
+    PurchasePlanner,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -115,6 +118,7 @@ pub struct App {
     login_modal_data: LoginModalData,
     profile_modal_data: ProfileModalData,
     bom_importer: BomImporter,
+    purchase_planner: PurchasePlanner,
 }
 
 impl App {
@@ -131,6 +135,7 @@ impl App {
             tab: AppTab::default(),
             search: Search::new(network.clone()),
             bom_importer: BomImporter::new(network.clone()),
+            purchase_planner: PurchasePlanner::new(network.clone()),
             grid: GridWidget::new(config.grid),
             network,
             modal: OpenModal::default(),
@@ -390,6 +395,32 @@ impl App {
                 .bom_importer
                 .update(msg)
                 .map(AppMessage::BomImportMessage),
+            AppMessage::PurchasePlannerMessage(ref msg @ purchase_planner::Msg::HoverPart(ref part)) => {
+                let part_with_count = PartWithCountAndStock {
+                    id: part.id,
+                    name: part.name.clone(),
+                    description: part.description.clone(),
+                    count: 1,
+                    stock: part.stock,
+                    column: part.column,
+                    row: part.row,
+                    z: part.z,
+                };
+                self.purchase_planner
+                    .update(msg.clone())
+                    .map(AppMessage::PurchasePlannerMessage)
+                    .chain(iced::Task::done(AppMessage::HighlightParts(vec![part_with_count])))
+            }
+            AppMessage::PurchasePlannerMessage(ref msg @ purchase_planner::Msg::ClearHover) => {
+                self.purchase_planner
+                    .update(msg.clone())
+                    .map(AppMessage::PurchasePlannerMessage)
+                    .chain(iced::Task::done(AppMessage::HighlightParts(vec![])))
+            }
+            AppMessage::PurchasePlannerMessage(msg) => self
+                .purchase_planner
+                .update(msg)
+                .map(AppMessage::PurchasePlannerMessage),
             AppMessage::FocusNext => widget::focus_next(),
             AppMessage::FocusPrevious => widget::focus_previous(),
             AppMessage::Back => match self.modal {
@@ -409,6 +440,7 @@ impl App {
                 match self.tab {
                     AppTab::Search => self.draw_search_tab(),
                     AppTab::BomImport => self.draw_bom_import_tab(),
+                    AppTab::PurchasePlanner => self.draw_purchase_planner_tab(),
                     _ => todo!(),
                 },
                 self.grid.view().map(AppMessage::GridMessage),
@@ -449,6 +481,12 @@ impl App {
 
     fn draw_bom_import_tab(&self) -> iced::Element<'_, AppMessage> {
         widget::container(self.bom_importer.view().map(AppMessage::BomImportMessage))
+            .width(Length::Fill)
+            .into()
+    }
+
+    fn draw_purchase_planner_tab(&self) -> iced::Element<'_, AppMessage> {
+        widget::container(self.purchase_planner.view().map(AppMessage::PurchasePlannerMessage))
             .width(Length::Fill)
             .into()
     }
@@ -515,11 +553,16 @@ impl App {
             AppTab::BomImport => AppTab::Search,
             _ => AppTab::BomImport,
         });
+        let purchase_planner_event = AppMessage::Tab(match self.tab {
+            AppTab::PurchasePlanner => AppTab::Search,
+            _ => AppTab::PurchasePlanner,
+        });
         let user_data = n.user_data.clone();
         widget::row![
             widget::button("Account").on_press(AppMessage::Modal(OpenModal::Login)),
             widget::button("Profile").on_press(AppMessage::Modal(OpenModal::SelectProfile)),
             widget::button("Import BOM").on_press(import_bom_event),
+            widget::button("Purchase Planner").on_press(purchase_planner_event),
             widget::horizontal_space().width(Length::Fill),
             widget::text(user_data.user.unwrap_or_default().email),
             widget::vertical_rule(2.0),

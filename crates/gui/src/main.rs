@@ -18,6 +18,7 @@ mod app;
 mod bom_importer;
 mod grid;
 mod icons;
+mod purchase_planner;
 mod search;
 mod settings;
 

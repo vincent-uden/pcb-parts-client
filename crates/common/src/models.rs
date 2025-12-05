@@ -138,3 +138,20 @@ pub struct BomWithParts {
     pub bom: Bom,
     pub parts: PartWithStock,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PurchaseRequirement {
+    pub part: PartWithStock,
+    pub required: i64,
+    pub shortfall: i64,
+    pub bom_sources: Vec<BomSource>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BomSource {
+    pub bom_name: String,
+    pub bom_id: i64,
+    pub quantity_needed: i64,
+    pub builds: i64,
+}
