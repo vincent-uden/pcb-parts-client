@@ -118,19 +118,35 @@ where
     let mut bom: HashMap<String, (i64, Part)> = HashMap::new();
     for (id, record) in tree.iter() {
         if let SchRecord::Component(c) = record {
-            let mut name = None;
+            let mut comment = None;
+            let mut part_number = None;
+            let mut manufacturer_part_number = None;
             for (_id, child) in tree.children(id) {
                 match child {
                     SchRecord::Parameter(p) => {
                         // The part name is stored in the comment for some reason
-                        if p.name == "Comment" {
-                            name = Some(p.label.text.clone());
+                        match p.name.as_str() {
+                            "Comment" => {
+                                comment = Some(p.label.text.clone());
+                            }
+                            "Part Number" => {
+                                part_number = Some(p.label.text.clone());
+                            }
+                            "Manufacturer Part Number" => {
+                                manufacturer_part_number = Some(p.label.text.clone());
+                            }
+                            _ => {}
                         }
                     }
                     _ => {}
                 }
             }
-            let name = name.unwrap();
+            let name_prio = vec![manufacturer_part_number, part_number, comment];
+            let name = name_prio
+                .into_iter()
+                .find(|p| p.is_some())
+                .unwrap()
+                .unwrap();
             if !bom.contains_key(&name) {
                 bom.insert(
                     name.clone(),
