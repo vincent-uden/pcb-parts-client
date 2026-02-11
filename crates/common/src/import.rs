@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
+use std::{
+    collections::HashMap,
+    fs::{self, File},
+    io::BufReader,
+    path::Path,
+};
 
 use altium_format::{
     RecordTree,
@@ -97,6 +102,12 @@ pub fn csv_to_headers(path: &Path) -> Result<Vec<String>> {
     Ok(headers.iter().map(String::from).collect())
 }
 
+pub fn altium_schematic_file_to_bom(path: &Path) -> Result<Vec<(i64, Part)>> {
+    let file = fs::File::open(path)?;
+    let rdr = BufReader::new(file);
+    altium_schematic_reader_to_bom(rdr)
+}
+
 pub fn altium_schematic_reader_to_bom<T>(rdr: BufReader<T>) -> Result<Vec<(i64, Part)>>
 where
     T: std::io::Read + std::io::Seek,
@@ -107,8 +118,6 @@ where
     let mut bom: HashMap<String, (i64, Part)> = HashMap::new();
     for (id, record) in tree.iter() {
         if let SchRecord::Component(c) = record {
-            let designator = get_component_designator(&tree, id)
-                .ok_or(anyhow!("Component designator not found for {:?}", c))?;
             let mut name = None;
             for (_id, child) in tree.children(id) {
                 match child {

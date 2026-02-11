@@ -2,11 +2,12 @@ use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use common::{
-    import::{csv_to_bom, csv_to_headers},
+    import::{altium_schematic_file_to_bom, csv_to_bom, csv_to_headers},
     models::Part,
     network::NetworkClient,
 };
 use iced::{Alignment, Border, Length, Padding, Theme, widget};
+use rfd::AsyncFileDialog;
 use tokio::sync::Mutex;
 use tracing::{debug, error};
 
@@ -46,9 +47,15 @@ impl BomImporter {
     pub fn update(&mut self, msg: Msg) -> iced::Task<Msg> {
         match msg {
             Msg::OpenFile => {
-                match csv_to_headers(&PathBuf::from_str(&self.path).unwrap_or_default()) {
-                    Ok(headers) => iced::Task::done(Msg::OpenSuccess(headers)),
-                    Err(e) => iced::Task::done(Msg::OpenFailed(e.to_string())),
+                if self.path.ends_with(".csv") {
+                    match csv_to_headers(&PathBuf::from_str(&self.path).unwrap_or_default()) {
+                        Ok(headers) => iced::Task::done(Msg::OpenSuccess(headers)),
+                        Err(e) => iced::Task::done(Msg::OpenFailed(e.to_string())),
+                    }
+                } else if self.path.ends_with(".SchDoc") {
+                    iced::Task::done(Msg::TryLoadPending)
+                } else {
+                    iced::Task::none()
                 }
             }
             Msg::OpenSuccess(column_names) => {
@@ -84,17 +91,32 @@ impl BomImporter {
                 iced::Task::none()
             }
             Msg::TryLoadPending => {
-                if let (Some(name), Some(desc), Some(count)) = (
-                    &self.name_column,
-                    &self.description_column,
-                    &self.count_column,
-                ) {
-                    match csv_to_bom(
-                        &PathBuf::from_str(&self.path).unwrap_or_default(),
-                        name,
-                        desc,
-                        count,
+                if self.path.ends_with(".csv") {
+                    if let (Some(name), Some(desc), Some(count)) = (
+                        &self.name_column,
+                        &self.description_column,
+                        &self.count_column,
                     ) {
+                        match csv_to_bom(
+                            &PathBuf::from_str(&self.path).unwrap_or_default(),
+                            name,
+                            desc,
+                            count,
+                        ) {
+                            Ok(parts) => iced::Task::perform(
+                                Self::fetch_pending_bom(self.network.clone(), parts),
+                                |output| match output {
+                                    Ok(pending) => Msg::PendingFetched(pending),
+                                    Err(_) => Msg::PendingFailed,
+                                },
+                            ),
+                            Err(_) => iced::Task::none(),
+                        }
+                    } else {
+                        iced::Task::none()
+                    }
+                } else if self.path.ends_with(".SchDoc") {
+                    match altium_schematic_file_to_bom(&PathBuf::from_str(&self.path).unwrap()) {
                         Ok(parts) => iced::Task::perform(
                             Self::fetch_pending_bom(self.network.clone(), parts),
                             |output| match output {
@@ -139,6 +161,20 @@ impl BomImporter {
                 self.reset();
                 iced::Task::none()
             }
+            Msg::OpenFilePicker => iced::Task::perform(
+                AsyncFileDialog::new()
+                    .add_filter("BOM files", &["csv", "SchDoc"])
+                    .pick_file(),
+                |file| match file {
+                    Some(f) => Msg::FilePicked(f.path().to_owned()),
+                    None => Msg::NoFilePicked,
+                },
+            ),
+            Msg::FilePicked(path) => {
+                iced::Task::done(Msg::PendingPath(path.to_string_lossy().to_string()))
+                    .chain(iced::Task::done(Msg::OpenFile))
+            }
+            Msg::NoFilePicked => iced::Task::none(),
         }
     }
 
@@ -196,7 +232,8 @@ impl BomImporter {
             widget::row![
                 widget::text_input("Path", &self.path)
                     .on_input(Msg::PendingPath)
-                    .on_submit(Msg::OpenFile)
+                    .on_submit(Msg::OpenFile),
+                widget::button("Pick File").on_press(Msg::OpenFilePicker),
             ],
             widget::vertical_space().height(8.0),
             column_pickers,

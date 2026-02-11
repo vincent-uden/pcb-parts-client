@@ -36,4 +36,7 @@ pub enum Msg {
     SubmitBom,
     SubmitFailed(String),
     SubmitSuccess,
+    OpenFilePicker,
+    NoFilePicked,
+    FilePicked(PathBuf),
 }

@@ -12,6 +12,7 @@ iced = { git = "https://github.com/iced-rs/iced.git", rev="7c5a4bc", version = "
 keybinds = { git = "https://github.com/vincent-uden/keybinds-rs.git", version = "0.1.1", features = ["iced", "serde"] }
 lazy_static = "1.5.0"
 logos = "0.15.0"
+rfd = "0.17.2"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 strum = { version = "0.27.1", features = ["derive"] }
