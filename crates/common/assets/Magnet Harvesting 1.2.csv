@@ -1,8 +1,9 @@
 Line #,Name,Description,Designator,Revision ID,Revision State,Revision Status,Quantity,Manufacturer 1,Manufacturer Part Number 1,Manufacturer Lifecycle 1,Supplier 1,Supplier Part Number 1,Supplier Unit Price 1,Supplier Subtotal 1
-
+"","ERF1002","BLE Module","","","Not managed","","1","","","","","","",""
 "","TMK107B7105KA-T","None","C1","CMP-2000-07259-3","Released","Up to date","1","Taiyo Yuden","TMK107B7105KA-T","Volume Production","Digikey","587-2984-1-ND","0.08","0.08"
 "","STPS1H100A","DIODE SCHOTTKY 100V 1A SMA","D1","CMP-2000-07173-2","New From Design","Up to date","1","STMicroelectronics","STPS1H100A","Volume Production","Newark","59M2196","0.082","0.082"
 "","105017-0001","Micro-USB B Receptacle, Right Angle, Bottom Mount, Surface Mount, with Solder Tabs, -30 to 85 degC, 5-Pin USB, RoHS, Tape and Reel","J1","CMP-2000-05827-1","Released","Up to date","1","Molex","1050170001","Volume Production","Arrow Electronics","1050170001","0.3241","0.3241"
+"","STLQ020C33R","Low-Dropout Linear Regulator 3.3 V output","LDO","","Not managed","","1","","","","","","",""
 "","S2B-PH-K-S(LF)(SN)","Male Header, Pitch 2 mm, 1 x 2 Position, Height 4.8 mm, Tail Length 3.4 mm, -25 to 85 degC, RoHS, Bulk","P1","CMP-1755-00004-1","Released","Up to date","1","JST","S2B-PH-K-S(LF)(SN)","Volume Production","Arrow Electronics","S2B-PH-K-S(LF)(SN)","0.0444","0.0444"
 "","61300421121","","P2","CMP-1502-01066-4","Released","Up to date","1","Wurth Electronics","61300421121","Volume Production","Mouser","710-61300421121","0.37","0.37"
 "","NTR4171PT1G","Power MOSFET, -30 V, 3.5 A, Single P-Channel, 3-Pin SOT-23, Pb-Free, Tape and Reel","Q1","CMP-1058-00738-1","Released","Up to date","1","ON Semiconductor","NTR4171PT1G","Volume Production","Mouser","863-NTR4171PT1G","0.53","0.53"
@@ -10,3 +11,4 @@ Line #,Name,Description,Designator,Revision ID,Revision State,Revision Status,Qu
 "","CRCW060310R0FKEA","RES Thick Film, 10O, 1%, 0.1W, 100ppm/°C, 0603","R_in_harvesting, R_in_USB","CMP-2000-03845-2","New From Design","Up to date","2","Vishay","CRCW060310R0FKEA","Volume Production","Mouser","71-CRCW0603-10-E3","0.1","0.2"
 "","DF10S","Bridge Rectifier, 1.5 A, 1000 V, 4-Pin SDIP, RoHS, Tape and Reel","Rectifier","CMP-2000-06153-1","Released","Up to date","1","ON Semiconductor / Fairchild","DF10S","Not Recommended for New Design","Avnet","80K5820","0.709","0.709"
 "","KMR211GLFS","SWITCH TACTILE SPST-NO 0.05A 32V","SW1","CMP-10040-000023-1","New From Design","Up to date","1","ITT C&K","KMR211GLFS","Volume Production","Newark","35AH0911","0.368","0.368"
+"","LTC4070EMS8E#PBF","Li-Ion / Polymer Shunt Battery Charger System, 8-pin SOP (MS8E-8), -40 to 125 degC, Pb-Free","U1","CMP-0473-00111-1","Released","Up to date","1","Analog Devices / Linear Technology","LTC4070EMS8E#PBF","Volume Production","Mouser","584-LTC4070EMS8E#PBF","5.87","5.87"
