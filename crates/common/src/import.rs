@@ -61,9 +61,17 @@ where
         let name =
             String::from_utf8_lossy(r.get(name_idx).ok_or(anyhow!("Non-homogeneous csv file"))?)
                 .to_string();
-        let description =
-            String::from_utf8_lossy(r.get(desc_idx).ok_or(anyhow!("Non-homogeneous csv file"))?)
-                .to_string();
+        let desc_bytes = r
+            .get(desc_idx)
+            .ok_or(anyhow!("Non-homogeneous csv file"))?
+            .to_owned();
+        let description = match String::from_utf8(desc_bytes.clone()) {
+            Ok(s) => s,
+            Err(_) => {
+                let (s, _, _) = encoding_rs::WINDOWS_1251.decode(&desc_bytes);
+                s.to_string()
+            }
+        };
         let count = String::from_utf8_lossy(
             r.get(count_idx)
                 .ok_or(anyhow!("Non-homogeneous csv file"))?,

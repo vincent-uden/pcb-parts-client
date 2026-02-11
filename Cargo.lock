@@ -791,6 +791,7 @@ dependencies = [
  "altium-format",
  "anyhow",
  "csv",
+ "encoding_rs",
  "futures",
  "pretty_assertions",
  "reqwest",

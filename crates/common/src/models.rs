@@ -1,12 +1,20 @@
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Tabled, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Tabled)]
 pub struct Part {
     pub id: i64,
     pub name: String,
     pub description: String,
 }
+
+impl PartialEq for Part {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.name == other.name
+    }
+}
+
+impl Eq for Part {}
 
 pub fn default_bin_placement() -> i64 {
     -1
